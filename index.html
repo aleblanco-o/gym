@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111214">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Gym</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root { --bg:#111214; --card:#1b1d21; --line:#2a2d33; --text:#f1f1ee; --muted:#9a9b97; --accent:#2a78d6; --good:#1baf7a; --warn:#eda100; --r:16px; }
+* { box-sizing:border-box; min-width:0; -webkit-tap-highlight-color:transparent; }
+html,body { overflow-x:hidden; margin:0; background:var(--bg); color:var(--text); font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif; }
+body { padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 96px); max-width:560px; margin:auto; }
+h1 { font-size:26px; margin:4px 0 2px; } .muted { color:var(--muted); font-size:14px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:14px; margin:12px 0; }
+.card.done { opacity:.55; }
+.row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.ex-name { font-weight:650; font-size:17px; } .tag { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+.cue { font-size:13px; color:var(--muted); margin:4px 0 10px; }
+.sets { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 6px; }
+.set { width:52px; height:52px; border-radius:50%; border:2px solid var(--line); background:transparent; color:var(--text); font-size:15px; font-weight:600; }
+.set.on { background:var(--good); border-color:var(--good); color:#08130e; }
+.stepper { display:flex; align-items:center; gap:6px; }
+.stepper button { width:40px; height:40px; border-radius:12px; border:1px solid var(--line); background:#24272c; color:var(--text); font-size:20px; }
+.stepper input { width:64px; height:40px; text-align:center; border-radius:12px; border:1px solid var(--line); background:#24272c; color:var(--text); font-size:17px; font-weight:650; }
+.rpe { display:flex; gap:6px; margin-top:10px; align-items:center; } .rpe span { font-size:13px; color:var(--muted); margin-right:2px; }
+.chip { min-width:40px; height:36px; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--text); font-size:15px; }
+.chip.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+.mob label { display:flex; gap:10px; align-items:center; padding:8px 0; font-size:15px; }
+.mob input { width:22px; height:22px; accent-color:var(--good); }
+.bar { position:fixed; left:0; right:0; bottom:0; padding:12px 14px calc(env(safe-area-inset-bottom) + 12px); background:linear-gradient(transparent, var(--bg) 30%); }
+.bar .inner { max-width:560px; margin:auto; display:flex; gap:10px; }
+.btn { flex:1; height:54px; border-radius:14px; border:0; font-size:17px; font-weight:650; background:var(--accent); color:#fff; }
+.btn.ghost { flex:0 0 54px; background:var(--card); border:1px solid var(--line); color:var(--text); font-size:22px; }
+.btn:disabled { opacity:.4; }
+.timer { position:fixed; top:calc(env(safe-area-inset-top) + 10px); left:50%; transform:translateX(-50%); background:var(--accent); color:#fff; padding:8px 16px; border-radius:20px; font-weight:700; font-variant-numeric:tabular-nums; display:none; z-index:5; }
+.timer.show { display:block; } .timer.over { background:var(--good); color:#08130e; }
+.field { display:block; margin:10px 0; } .field input { width:100%; height:46px; border-radius:12px; border:1px solid var(--line); background:#24272c; color:var(--text); padding:0 12px; font-size:16px; }
+.hist { font-size:14px; } .hist .row { padding:6px 0; border-bottom:1px solid var(--line); }
+.badge { flex:none; white-space:nowrap; font-size:12px; padding:2px 8px; border-radius:10px; background:#24272c; color:var(--muted); }
+.badge.up { background:rgba(27,175,122,.18); color:var(--good); }
+.toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:#24272c; border:1px solid var(--line); padding:10px 16px; border-radius:12px; font-size:14px; display:none; max-width:90%; text-align:center; }
+.toast.show { display:block; }
+nav { display:flex; gap:8px; margin:8px 0 4px; } nav button { flex:1; height:38px; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--muted); font-size:14px; }
+nav button.on { background:var(--card); color:var(--text); }
+svg.spark { width:100%; height:40px; }
+</style>
+</head>
+<body>
+<div id="timer" class="timer"></div>
+<div id="toast" class="toast"></div>
+<header>
+  <div class="row"><h1 id="title">Gym</h1><span id="sync" class="badge"></span></div>
+  <div id="sub" class="muted"></div>
+  <nav><button data-tab="today" class="on">Today</button><button data-tab="history">Progress</button><button data-tab="settings">Settings</button></nav>
+</header>
+<main id="app"></main>
+<div class="bar" id="bar"><div class="inner"><button class="btn" id="finish">Finish and upload</button></div></div>
+
+<script>
+// ---------- program ----------
+const PROGRAM = [
+  { id:"tbdl", name:"Trap-bar deadlift", tag:"Max strength", sets:4, reps:5, unit:"kg", step:2.5, inc:5, rest:180, cue:"Brace, push the floor away. Every rep crisp, stop 1-2 reps before failure." },
+  { id:"bss", name:"Bulgarian split squat", tag:"Max strength · per leg", sets:3, reps:6, unit:"kg", step:1, inc:2, rest:120, cue:"Total dumbbell weight. Knee tracks over the 2nd toe, hips level." },
+  { id:"hpc", name:"Hang power clean", tag:"Explosive", sets:5, reps:3, unit:"kg", step:2.5, inc:2.5, rest:120, cue:"Maximal speed. If the bar slows or form breaks, keep the weight." },
+  { id:"splank", name:"Side plank + hip abduction", tag:"Isometric · per side", sets:3, reps:1, unit:"s", step:5, inc:5, max:60, rest:60, cue:"Top leg lifted. Straight line ear-hip-ankle. Weight goes on the hip after 60 s." },
+  { id:"calf", name:"Single-leg calf raise, bent knee", tag:"Strength + isometric · per leg", sets:3, reps:8, unit:"kg", step:1, inc:2, rest:60, cue:"Knee bent ~30°. 3 s hold at the top. Weight in the hand." },
+];
+const MOBILITY = ["Hip 90/90, 1 min", "Ankle to wall, 1 min per side", "Thoracic rotation, 10 per side"];
+
+// ---------- storage ----------
+const LS = { get:(k,d)=>{ try { const v = localStorage.getItem("gym."+k); return v ? JSON.parse(v) : d; } catch(e) { return d; } }, set:(k,v)=>localStorage.setItem("gym."+k, JSON.stringify(v)) };
+let settings = LS.get("settings", { key:"", athlete:"0" });
+let history = LS.get("history", []);          // finished sessions
+let queue = LS.get("queue", []);              // sessions waiting for upload
+let cur = LS.get("current", null);            // session in progress
+const $ = (s) => document.querySelector(s);
+const el = (tag, cls, txt, parent) => { const n = document.createElement(tag); if (cls) n.className = cls; if (txt !== undefined && txt !== null) n.textContent = txt; if (parent) parent.appendChild(n); return n; };
+const toast = (t) => { const e = $("#toast"); e.textContent = t; e.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => e.classList.remove("show"), 2600); };
+
+// Next target per exercise from the last session (double progression on RPE).
+function targetFor(ex) {
+  const last = [...history].reverse().find((s) => s.ex[ex.id] && s.ex[ex.id].load !== null && s.ex[ex.id].load !== "");
+  if (!last) return { load: ex.unit === "s" ? 30 : null, note: ex.unit === "s" ? "Start" : "Test: RPE 6 weight", up:false };
+  const r = last.ex[ex.id], all = r.done >= ex.sets, load = Number(r.load);
+  if (all && r.rpe && r.rpe <= 7) { const n = ex.max ? Math.min(ex.max, load + ex.inc) : load + ex.inc; return { load:n, note:`+${n - load} ${ex.unit} (last: RPE ${r.rpe})`, up:n > load }; }
+  if (!all) return { load, note:`Same: ${r.done}/${ex.sets} sets last time`, up:false };
+  return { load, note:`Same (last: RPE ${r.rpe || "?"})`, up:false };
+}
+function newSession() {
+  const ex = {};
+  PROGRAM.forEach((p) => { const t = targetFor(p); ex[p.id] = { load: t.load, done:0, rpe:null }; });
+  return { id:"gym-" + Date.now(), start:new Date().toISOString(), mob:[], ex };
+}
+const save = () => LS.set("current", cur);
+
+// ---------- rest timer ----------
+let tEnd = 0, tInt = null;
+function startRest(sec) {
+  tEnd = Date.now() + sec * 1000; clearInterval(tInt);
+  const t = $("#timer"); t.classList.add("show"); t.classList.remove("over");
+  const tick = () => {
+    const left = Math.round((tEnd - Date.now()) / 1000);
+    if (left <= 0) { t.textContent = "Go"; t.classList.add("over"); if (left === 0 && navigator.vibrate) navigator.vibrate([200,100,200]); if (left < -20) { clearInterval(tInt); t.classList.remove("show"); } return; }
+    t.textContent = `Rest ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`;
+  };
+  tick(); tInt = setInterval(tick, 1000);
+}
+$("#timer").addEventListener("click", () => { clearInterval(tInt); $("#timer").classList.remove("show"); });
+
+// ---------- views ----------
+let tab = "today";
+function render() {
+  document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
+  $("#sync").textContent = queue.length ? `${queue.length} to upload` : (settings.key ? "Intervals ✓" : "No API key");
+  $("#bar").style.display = tab === "today" ? "" : "none";
+  const app = $("#app"); app.innerHTML = "";
+  if (tab === "today") today(app); else if (tab === "history") progress(app); else settingsView(app);
+}
+function today(app) {
+  if (!cur) { cur = newSession(); save(); }
+  const doneEx = PROGRAM.filter((p) => cur.ex[p.id].done >= p.sets).length;
+  $("#title").textContent = "Today";
+  $("#sub").textContent = `${doneEx} of ${PROGRAM.length} exercises · ${history.length} sessions logged`;
+
+  const mob = el("div", "card mob" + (cur.mob.length === MOBILITY.length ? " done" : ""), null, app);
+  el("div", "tag", "Mobility · 5 min", mob);
+  MOBILITY.forEach((m, i) => {
+    const l = el("label", null, null, mob); const c = el("input", null, null, l); c.type = "checkbox"; c.checked = cur.mob.includes(i); el("span", null, m, l);
+    c.addEventListener("change", () => { cur.mob = c.checked ? [...cur.mob, i] : cur.mob.filter((x) => x !== i); save(); render(); });
+  });
+
+  PROGRAM.forEach((p) => {
+    const r = cur.ex[p.id], t = targetFor(p);
+    const card = el("div", "card" + (r.done >= p.sets && r.rpe ? " done" : ""), null, app);
+    el("div", "tag", p.tag, card);
+    const top = el("div", "row", null, card);
+    el("div", "ex-name", p.name, top);
+    el("span", "badge" + (t.up ? " up" : ""), t.note, top);
+    el("div", "cue", p.cue, card);
+    const row = el("div", "row", null, card);
+    el("div", "muted", `${p.sets} × ${p.unit === "s" ? "" : p.reps + " @"}`, row);
+    const st = el("div", "stepper", null, row);
+    const minus = el("button", null, "−", st), inp = el("input", null, null, st), plus = el("button", null, "+", st);
+    inp.inputMode = "decimal"; inp.placeholder = p.unit; inp.value = r.load ?? "";
+    el("span", "muted", p.unit, st);
+    const setLoad = (v) => { r.load = v === "" || isNaN(v) ? null : Math.max(0, Math.round(v * 10) / 10); save(); inp.value = r.load ?? ""; };
+    minus.onclick = () => setLoad((Number(inp.value) || 0) - p.step);
+    plus.onclick = () => setLoad((Number(inp.value) || 0) + p.step);
+    inp.onchange = () => setLoad(inp.value === "" ? "" : Number(inp.value.replace(",", ".")));
+    const sets = el("div", "sets", null, card);
+    for (let i = 0; i < p.sets; i++) {
+      const b = el("button", "set" + (i < r.done ? " on" : ""), p.unit === "s" ? `${r.load || ""}s` : String(p.reps), sets);
+      b.onclick = () => {
+        if (r.load === null) { toast("Enter the weight first"); inp.focus(); return; }
+        const wasOn = i < r.done; r.done = wasOn ? i : i + 1; save(); render();
+        if (!wasOn && r.done < p.sets) startRest(p.rest);
+      };
+    }
+    if (r.done >= p.sets) {
+      const rp = el("div", "rpe", null, card); el("span", null, "RPE", rp);
+      [6,7,8,9,10].forEach((v) => { const c = el("button", "chip" + (r.rpe === v ? " on" : ""), String(v), rp); c.onclick = () => { r.rpe = v; save(); render(); }; });
+    }
+  });
+  $("#finish").disabled = !PROGRAM.some((p) => cur.ex[p.id].done > 0);
+}
+function progress(app) {
+  $("#title").textContent = "Progress";
+  $("#sub").textContent = `${history.length} sessions`;
+  if (!history.length) { el("div", "card muted", "Your first session sets the starting weights. Progress shows here after it.", app); return; }
+  PROGRAM.forEach((p) => {
+    const pts = history.filter((s) => s.ex[p.id] && s.ex[p.id].load).map((s) => ({ d:s.start, v:Number(s.ex[p.id].load), rpe:s.ex[p.id].rpe }));
+    const c = el("div", "card", null, app);
+    const top = el("div", "row", null, c); el("div", "ex-name", p.name, top);
+    el("span", "badge", pts.length ? `${pts[pts.length-1].v} ${p.unit}${pts.length > 1 ? ` · ${pts[pts.length-1].v - pts[0].v >= 0 ? "+" : ""}${Math.round((pts[pts.length-1].v - pts[0].v)*10)/10}` : ""}` : "–", top);
+    if (pts.length > 1) {
+      const lo = Math.min(...pts.map((x) => x.v)), hi = Math.max(...pts.map((x) => x.v)), W = 300, H = 40;
+      const sx = (i) => 4 + (i / (pts.length - 1)) * (W - 8), sy = (v) => hi === lo ? H/2 : H - 4 - ((v - lo) / (hi - lo)) * (H - 8);
+      c.insertAdjacentHTML("beforeend", `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${pts.map((x,i)=>`${i?"L":"M"}${sx(i)},${sy(x.v)}`).join(" ")}" fill="none" stroke="#2a78d6" stroke-width="2.5" stroke-linejoin="round"/></svg>`);
+    }
+  });
+  const h = el("div", "card hist", null, app); el("div", "tag", "Sessions", h);
+  [...history].reverse().slice(0, 12).forEach((s) => {
+    const r = el("div", "row", null, h);
+    el("span", null, new Date(s.start).toLocaleDateString(undefined, { weekday:"short", day:"numeric", month:"short" }), r);
+    el("span", "badge" + (s.uploaded ? " up" : ""), s.uploaded ? "in Intervals" : "waiting", r);
+  });
+}
+function settingsView(app) {
+  $("#title").textContent = "Settings"; $("#sub").textContent = "Stored only on this phone.";
+  const c = el("div", "card", null, app);
+  const f1 = el("label", "field", null, c); el("div", "muted", "Intervals.icu API key (Settings → Developer)", f1);
+  const k = el("input", null, null, f1); k.type = "password"; k.value = settings.key; k.autocomplete = "off";
+  const f2 = el("label", "field", null, c); el("div", "muted", "Athlete id (0 = you)", f2);
+  const a = el("input", null, null, f2); a.value = settings.athlete;
+  const b = el("button", "btn", "Save and test", c); b.style.width = "100%";
+  b.onclick = async () => {
+    settings = { key:k.value.trim(), athlete:a.value.trim() || "0" }; LS.set("settings", settings);
+    try { const r = await fetch(`https://intervals.icu/api/v1/athlete/${settings.athlete}`, { headers:{ Authorization:auth() } }); toast(r.ok ? "Connected to Intervals.icu" : `Failed (${r.status}). Check the key.`); } catch(e) { toast("No connection. Saved anyway."); }
+    flush(); render();
+  };
+  const d = el("div", "card", null, app); el("div", "tag", "Data", d);
+  const ex = el("button", "chip", "Export backup", d); ex.style.marginTop = "8px";
+  ex.onclick = () => { const blob = new Blob([JSON.stringify({ history }, null, 1)], { type:"application/json" }); const u = URL.createObjectURL(blob); const l = el("a"); l.href = u; l.download = "gym-backup.json"; l.click(); };
+  const rs = el("button", "chip", "Discard today's session", d); rs.style.margin = "8px 0 0 8px";
+  rs.onclick = () => { if (confirm("Discard the session in progress?")) { cur = null; LS.set("current", null); tab = "today"; render(); } };
+}
+
+// ---------- upload ----------
+const auth = () => "Basic " + btoa("API_KEY:" + settings.key);
+const ABBR = { tbdl:"Trap-bar DL", bss:"Bulgarian SS", hpc:"Hang power clean", splank:"Side plank", calf:"SL calf raise" };
+function describe(s) {
+  const lines = PROGRAM.filter((p) => s.ex[p.id].done > 0).map((p) => { const r = s.ex[p.id]; return p.unit === "s" ? `${ABBR[p.id]}: ${r.done}x${r.load}s/side${r.rpe ? ` RPE ${r.rpe}` : ""}` : `${ABBR[p.id]}: ${r.done}x${p.reps} @ ${r.load} kg${r.rpe ? ` RPE ${r.rpe}` : ""}`; });
+  const data = { v:1, mob:s.mob.length, ex:Object.fromEntries(PROGRAM.map((p) => [p.id, { load:s.ex[p.id].load, sets:s.ex[p.id].done, of:p.sets, reps:p.reps, unit:p.unit, rpe:s.ex[p.id].rpe }])) };
+  return `${lines.join("\n")}\nMobility ${s.mob.length}/${MOBILITY.length}\n\ngym:${JSON.stringify(data)}`;
+}
+async function upload(s) {
+  const rpes = PROGRAM.map((p) => s.ex[p.id].rpe).filter(Boolean);
+  const local = new Date(s.start); const pad = (n) => String(n).padStart(2, "0");
+  const body = {
+    start_date_local:`${local.getFullYear()}-${pad(local.getMonth()+1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}:00`,
+    type:"WeightTraining", name:"Gym: strength", description:describe(s),
+    moving_time:s.sec, elapsed_time:s.sec, external_id:s.id,
+    icu_rpe: rpes.length ? Math.round(rpes.reduce((a,b)=>a+b,0) / rpes.length) : undefined,
+  };
+  const r = await fetch(`https://intervals.icu/api/v1/athlete/${settings.athlete}/activities/manual`, { method:"POST", headers:{ Authorization:auth(), "Content-Type":"application/json" }, body:JSON.stringify(body) });
+  if (!r.ok) throw new Error(String(r.status));
+}
+async function flush() {
+  if (!settings.key || !queue.length || !navigator.onLine) return;
+  for (const s of [...queue]) {
+    try { await upload(s); queue = queue.filter((q) => q.id !== s.id); const h = history.find((x) => x.id === s.id); if (h) h.uploaded = true; LS.set("queue", queue); LS.set("history", history); toast("Uploaded to Intervals.icu"); }
+    catch(e) { toast(`Upload failed (${e.message}). It stays queued.`); break; }
+  }
+  render();
+}
+$("#finish").onclick = () => {
+  const missingRpe = PROGRAM.filter((p) => cur.ex[p.id].done >= p.sets && !cur.ex[p.id].rpe);
+  if (missingRpe.length && !confirm(`No RPE for ${missingRpe.map((p)=>p.name).join(", ")}. Progression needs it. Finish anyway?`)) return;
+  cur.sec = Math.max(600, Math.round((Date.now() - new Date(cur.start)) / 1000));
+  history.push(cur); queue.push(cur); LS.set("history", history); LS.set("queue", queue);
+  cur = null; LS.set("current", null); clearInterval(tInt); $("#timer").classList.remove("show");
+  toast(settings.key ? "Saved. Uploading…" : "Saved. Add your API key in Settings to upload.");
+  flush(); render();
+};
+document.querySelectorAll("nav button").forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
+window.addEventListener("online", flush);
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+render(); flush();
+</script>
+</body>
+</html>
