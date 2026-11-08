@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#111214">
+<meta name="theme-color" content="#100F0F">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Gym</title>
@@ -11,7 +11,7 @@
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon.svg">
 <style>
-:root { --bg:#111214; --card:#1b1d21; --line:#2a2d33; --text:#f1f1ee; --muted:#9a9b97; --accent:#2a78d6; --good:#1baf7a; --warn:#eda100; --r:16px; }
+:root { --bg:#100F0F; --card:#1C1B1A; --line:#343331; --text:#CECDC3; --muted:#878580; --accent:#4385BE; --good:#879A39; --warn:#D0A215; --red:#D14D41; --orange:#DA702C; --r:16px; }
 * { box-sizing:border-box; min-width:0; -webkit-tap-highlight-color:transparent; }
 html,body { overflow-x:hidden; margin:0; background:var(--bg); color:var(--text); font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif; }
 body { padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 96px); max-width:560px; margin:auto; }
@@ -23,17 +23,17 @@ h1 { font-size:26px; margin:4px 0 2px; } .muted { color:var(--muted); font-size:
 .cue { font-size:13px; color:var(--muted); margin:4px 0 10px; }
 .sets { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 6px; }
 .set { width:52px; height:52px; border-radius:50%; border:2px solid var(--line); background:transparent; color:var(--text); font-size:15px; font-weight:600; }
-.set.on { background:var(--good); border-color:var(--good); color:#08130e; }
+.set.on { background:var(--good); border-color:var(--good); color:#100F0F; }
 .stepper { display:flex; align-items:center; gap:6px; }
-.stepper button { width:40px; height:40px; border-radius:12px; border:1px solid var(--line); background:#24272c; color:var(--text); font-size:20px; }
-.stepper input { width:64px; height:40px; text-align:center; border-radius:12px; border:1px solid var(--line); background:#24272c; color:var(--text); font-size:17px; font-weight:650; }
+.stepper button { width:40px; height:40px; border-radius:12px; border:1px solid var(--line); background:#282726; color:var(--text); font-size:20px; }
+.stepper input { width:64px; height:40px; text-align:center; border-radius:12px; border:1px solid var(--line); background:#282726; color:var(--text); font-size:17px; font-weight:650; }
 .rpe { display:flex; gap:6px; margin-top:10px; align-items:center; } .rpe span { font-size:13px; color:var(--muted); margin-right:2px; }
 .chip { min-width:40px; height:36px; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--text); font-size:15px; }
 .chip.on { background:var(--accent); border-color:var(--accent); color:#fff; }
 .meal .row { align-items:flex-start; } .meal .when { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
 .meal .buy { font-size:13px; color:var(--muted); margin-top:6px; } .meal .acts { display:flex; gap:8px; margin-top:10px; }
 .eat { flex:1; height:44px; border-radius:12px; border:1px solid var(--line); background:transparent; color:var(--text); font-size:15px; font-weight:600; }
-.eat.on { background:var(--good); border-color:var(--good); color:#08130e; } .swap { width:44px; height:44px; border-radius:12px; border:1px solid var(--line); background:transparent; color:var(--text); font-size:18px; }
+.eat.on { background:var(--good); border-color:var(--good); color:#100F0F; } .swap { width:44px; height:44px; border-radius:12px; border:1px solid var(--line); background:transparent; color:var(--text); font-size:18px; }
 .macros { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; } .mac .v { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; } .mac .t { font-size:12px; color:var(--muted); }
 .mbar { height:8px; border-radius:4px; background:var(--line); overflow:hidden; margin-top:4px; } .mbar div { height:100%; border-radius:4px; background:var(--accent); } .mbar div.full { background:var(--good); }
 .quick { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; } .quick .chip { padding:0 10px; font-size:14px; }
@@ -46,12 +46,12 @@ h1 { font-size:26px; margin:4px 0 2px; } .muted { color:var(--muted); font-size:
 .btn.ghost { flex:0 0 54px; background:var(--card); border:1px solid var(--line); color:var(--text); font-size:22px; }
 .btn:disabled { opacity:.4; }
 .timer { position:fixed; top:calc(env(safe-area-inset-top) + 10px); left:50%; transform:translateX(-50%); background:var(--accent); color:#fff; padding:8px 16px; border-radius:20px; font-weight:700; font-variant-numeric:tabular-nums; display:none; z-index:5; }
-.timer.show { display:block; } .timer.over { background:var(--good); color:#08130e; }
-.field { display:block; margin:10px 0; } .field input { width:100%; height:46px; border-radius:12px; border:1px solid var(--line); background:#24272c; color:var(--text); padding:0 12px; font-size:16px; }
+.timer.show { display:block; } .timer.over { background:var(--good); color:#100F0F; }
+.field { display:block; margin:10px 0; } .field input { width:100%; height:46px; border-radius:12px; border:1px solid var(--line); background:#282726; color:var(--text); padding:0 12px; font-size:16px; }
 .hist { font-size:14px; } .hist .row { padding:6px 0; border-bottom:1px solid var(--line); }
-.badge { flex:none; white-space:nowrap; font-size:12px; padding:2px 8px; border-radius:10px; background:#24272c; color:var(--muted); }
-.badge.up { background:rgba(27,175,122,.18); color:var(--good); }
-.toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:#24272c; border:1px solid var(--line); padding:10px 16px; border-radius:12px; font-size:14px; display:none; max-width:90%; text-align:center; }
+.badge { flex:none; white-space:nowrap; font-size:12px; padding:2px 8px; border-radius:10px; background:#282726; color:var(--muted); }
+.badge.up { background:rgba(135,154,57,.2); color:var(--good); }
+.toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:#282726; border:1px solid var(--line); padding:10px 16px; border-radius:12px; font-size:14px; display:none; max-width:90%; text-align:center; }
 .toast.show { display:block; }
 nav { display:flex; gap:8px; margin:8px 0 4px; } nav button { flex:1; height:38px; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--muted); font-size:14px; }
 nav button.on { background:var(--card); color:var(--text); }
@@ -188,7 +188,7 @@ function progress(app) {
     if (pts.length > 1) {
       const lo = Math.min(...pts.map((x) => x.v)), hi = Math.max(...pts.map((x) => x.v)), W = 300, H = 40;
       const sx = (i) => 4 + (i / (pts.length - 1)) * (W - 8), sy = (v) => hi === lo ? H/2 : H - 4 - ((v - lo) / (hi - lo)) * (H - 8);
-      c.insertAdjacentHTML("beforeend", `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${pts.map((x,i)=>`${i?"L":"M"}${sx(i)},${sy(x.v)}`).join(" ")}" fill="none" stroke="#2a78d6" stroke-width="2.5" stroke-linejoin="round"/></svg>`);
+      c.insertAdjacentHTML("beforeend", `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${pts.map((x,i)=>`${i?"L":"M"}${sx(i)},${sy(x.v)}`).join(" ")}" fill="none" stroke="#DA702C" stroke-width="2.5" stroke-linejoin="round"/></svg>`);
     }
   });
   const h = el("div", "card hist", null, app); el("div", "tag", "Sessions", h);
@@ -219,39 +219,38 @@ function settingsView(app) {
 }
 
 // ---------- food: one breakfast, lunch and dinner a day, plus a macro panel ----------
-// Macros per portion are estimates (assumed). Built around the blood test: oats daily, olive oil, fish 2x/week, lean protein.
+// Macros per portion are estimates (assumed). Vegetarian (eggs and dairy), built around the blood test: oats daily, olive oil, lean dairy, legumes, flax and walnuts.
 const MEALS = {
   breakfast: [
-    { n:"Overnight oats", d:"80 g oats, 250 g skyr, berries, honey", c:95, p:40, f:7, buy:"oats, skyr, frozen berries, honey" },
+    { n:"Overnight oats", d:"80 g oats, 250 g skyr, berries, 1 tbsp ground flax", c:95, p:40, f:9, buy:"oats, skyr, frozen berries, ground flaxseed" },
     { n:"Protein porridge", d:"80 g oats in milk, banana, 1 scoop whey, 15 g walnuts", c:100, p:40, f:17, buy:"oats, milk 1.5%, bananas, whey, walnuts" },
     { n:"Quark bowl", d:"250 g Magerquark, 60 g oats, apple, cinnamon", c:75, p:40, f:5, buy:"Magerquark, oats, apples" },
-    { n:"Arepas con huevo", d:"2 arepas, 1 egg + 2 whites, 50 g avocado, light cheese", c:70, p:30, f:20, buy:"arepa flour (P.A.N.), eggs, avocado, light cheese" },
-    { n:"Salmon bagel", d:"2 bagels, smoked salmon, light cream cheese, cucumber", c:80, p:35, f:14, buy:"bagels, smoked salmon, light cream cheese, cucumber" },
+    { n:"Arepas con huevo", d:"2 arepas, 2 eggs, 50 g avocado, light cheese", c:70, p:30, f:22, buy:"arepa flour (P.A.N.), eggs, avocado, light cheese" },
     { n:"Eggs on rye", d:"3 slices rye bread, 2 eggs + 100 g cottage cheese, tomato", c:60, p:35, f:18, buy:"rye bread, eggs, cottage cheese, tomatoes" },
+    { n:"Tofu scramble toast", d:"200 g tofu, spinach, 2 slices whole-grain toast, 200 g skyr", c:55, p:45, f:16, buy:"firm tofu, spinach, whole-grain bread, skyr" },
   ],
   lunch: [
-    { n:"Chicken rice bowl", d:"120 g rice, 180 g chicken, peppers, olive oil", c:100, p:50, f:15, buy:"rice, chicken breast, peppers, olive oil" },
-    { n:"Tuna pasta", d:"125 g pasta, 1 can tuna, tomato sauce, spinach, olive oil", c:95, p:45, f:14, buy:"pasta, canned tuna, passata, spinach" },
-    { n:"Chili con carne", d:"150 g lean beef, kidney beans, 100 g rice", c:100, p:45, f:15, buy:"lean beef mince (5%), kidney beans, rice, tomatoes" },
-    { n:"Couscous chicken salad", d:"100 g couscous, chickpeas, 150 g chicken, feta light", c:90, p:45, f:15, buy:"couscous, chickpeas, chicken, light feta, cucumber" },
-    { n:"Potatoes + Kräuterquark", d:"400 g potatoes, 250 g herb quark, 150 g salmon", c:80, p:50, f:20, buy:"potatoes, Kräuterquark, salmon" },
-    { n:"Calentado ligero", d:"rice, black beans, 150 g lean beef, 1 egg, plantain", c:110, p:45, f:16, buy:"rice, black beans, lean beef, eggs, plantain" },
+    { n:"Tofu rice bowl", d:"120 g rice, 200 g tofu, edamame, peppers, soy, olive oil", c:100, p:42, f:18, buy:"rice, firm tofu, frozen edamame, peppers" },
+    { n:"Red lentil pasta", d:"125 g lentil pasta, passata, spinach, 20 g parmesan", c:85, p:40, f:10, buy:"red lentil pasta, passata, spinach, parmesan" },
+    { n:"Veggie chili", d:"150 g soy mince, kidney + black beans, 100 g rice", c:105, p:45, f:10, buy:"soy mince, kidney beans, black beans, rice, tomatoes" },
+    { n:"Chickpea couscous salad", d:"100 g couscous, chickpeas, light feta, cucumber, 150 g skyr dip", c:95, p:38, f:14, buy:"couscous, chickpeas, light feta, cucumber, skyr" },
+    { n:"Potatoes + Kräuterquark", d:"400 g potatoes, 250 g herb quark, 2 eggs", c:80, p:42, f:15, buy:"potatoes, Kräuterquark, eggs" },
+    { n:"Calentado vegetariano", d:"rice, black beans, 2 eggs, plantain, a little avocado", c:115, p:30, f:20, buy:"rice, black beans, eggs, plantain, avocado" },
   ],
   dinner: [
-    { n:"Salmon, potatoes, broccoli", d:"150 g salmon, 350 g potatoes, broccoli", c:70, p:40, f:22, buy:"salmon, potatoes, broccoli", fish:true },
-    { n:"Turkey noodle stir-fry", d:"100 g noodles, 180 g turkey, frozen wok veg, soy", c:85, p:45, f:10, buy:"noodles, turkey strips, frozen wok vegetables" },
-    { n:"Gnocchi with chicken", d:"400 g gnocchi, 150 g chicken, tomato, parmesan", c:110, p:45, f:12, buy:"gnocchi, chicken, passata, parmesan" },
-    { n:"Mackerel + rice", d:"1 can mackerel, 100 g rice, cucumber salad", c:80, p:30, f:20, buy:"canned mackerel, rice, cucumber", fish:true },
-    { n:"Lentil dal + skyr", d:"100 g red lentils, rice, spinach, 200 g skyr", c:110, p:45, f:8, buy:"red lentils, rice, spinach, coconut-free curry paste, skyr" },
-    { n:"Wraps with beans and chicken", d:"3 whole-wheat wraps, black beans, 150 g chicken, salsa", c:95, p:45, f:12, buy:"wraps, black beans, chicken, salsa" },
+    { n:"Tempeh noodle stir-fry", d:"100 g noodles, 150 g tempeh, frozen wok veg, soy", c:90, p:40, f:15, buy:"noodles, tempeh, frozen wok vegetables" },
+    { n:"Lentil dal + skyr", d:"100 g red lentils, rice, spinach, 200 g skyr", c:110, p:45, f:8, buy:"red lentils, rice, spinach, curry paste, skyr" },
+    { n:"Shakshuka", d:"3 eggs, chickpeas, tomato, peppers, bread", c:70, p:35, f:20, buy:"eggs, chickpeas, passata, peppers, bread" },
+    { n:"Bean and cheese wraps", d:"3 whole-wheat wraps, black beans, light cheese, Greek yoghurt", c:95, p:40, f:15, buy:"wraps, black beans, light cheese, Greek yoghurt 0.2%" },
+    { n:"Seitan bulgur bowl", d:"150 g seitan, 80 g bulgur, hummus, salad", c:80, p:50, f:12, buy:"seitan, bulgur, hummus, salad" },
+    { n:"Gnocchi with white beans", d:"400 g gnocchi, white beans, tomato, 30 g parmesan", c:115, p:32, f:10, buy:"gnocchi, white beans, passata, parmesan" },
   ],
-};
-const QUICK = [
+};const QUICK = [
   { n:"Skyr 500 g", c:20, p:55, f:1 }, { n:"Whey shake", c:3, p:24, f:2 }, { n:"Banana", c:27, p:1, f:0 },
   { n:"Bread + honey", c:30, p:4, f:1 }, { n:"Nuts 30 g", c:5, p:6, f:15 }, { n:"Quark 250 g", c:10, p:30, f:1 },
   { n:"Rice 100 g dry", c:78, p:7, f:1 }, { n:"Gel", c:25, p:0, f:0 },
 ];
-const PANTRY = "Keep at home: oats, skyr or Magerquark, eggs, rice, pasta, canned tuna, canned mackerel, frozen berries, frozen veg, bananas, olive oil, nuts.";
+const PANTRY = "Keep at home: oats, skyr or Magerquark, eggs, tofu, red lentils, canned beans and chickpeas, rice, pasta, frozen edamame, frozen veg and berries, bananas, walnuts, ground flax, olive oil.";
 const KG = 78;
 const DAYTYPES = { rest:{ label:"Rest day", c:[4,5], f:1.1 }, easy:{ label:"Easy day", c:[5,6], f:1.05 }, quality:{ label:"Hard day", c:[6,7], f:0.95 }, long:{ label:"Long run day", c:[7,8], f:0.95 } };
 const isoDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -277,9 +276,7 @@ function dayOf(ds) {
   if (!foodLog[ds]) {
     const n = Math.floor(new Date(ds + "T12:00").getTime() / 864e5);
     const wd = new Date(ds + "T12:00").getDay();
-    const fishDay = wd === 2 || wd === 5;   // fish dinner Tue and Fri
-    const nonFish = MEALS.dinner.map((m, i) => (m.fish ? -1 : i)).filter((i) => i >= 0);
-    const din = wd === 2 ? 0 : wd === 5 ? 3 : nonFish[n % nonFish.length];
+    const din = (n * 3 + 1) % MEALS.dinner.length;
     foodLog[ds] = { meals:{ breakfast:{ i:n % MEALS.breakfast.length, eaten:false }, lunch:{ i:(n * 5 + 2) % MEALS.lunch.length, eaten:false }, dinner:{ i:din, eaten:false } }, extra:[] };
   }
   return foodLog[ds];
@@ -333,7 +330,7 @@ async function food(app) {
   [["breakfast","Breakfast"],["lunch","Lunch"],["dinner","Dinner"]].forEach(([k, label]) => {
     const m = d.meals[k], x = MEALS[k][m.i];
     const c = el("div", "card meal" + (m.eaten ? " done" : ""), null, app);
-    el("div", "when", label + (x.fish ? " · fish day" : ""), c);
+    el("div", "when", label, c);
     const r = el("div", "row", null, c); el("div", "ex-name", x.n, r); el("span", "badge", `${x.p} g P`, r);
     el("div", "cue", x.d, c);
     el("div", "buy", `🛒 ${x.buy}`, c);

@@ -1,9 +1,9 @@
-{
+﻿{
   "name": "Gym",
   "short_name": "Gym",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#111214",
-  "theme_color": "#111214",
+  "background_color": "#100F0F",
+  "theme_color": "#100F0F",
   "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
 }
