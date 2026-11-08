@@ -30,6 +30,14 @@ h1 { font-size:26px; margin:4px 0 2px; } .muted { color:var(--muted); font-size:
 .rpe { display:flex; gap:6px; margin-top:10px; align-items:center; } .rpe span { font-size:13px; color:var(--muted); margin-right:2px; }
 .chip { min-width:40px; height:36px; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--text); font-size:15px; }
 .chip.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+.meal .row { align-items:flex-start; } .meal .when { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+.meal .buy { font-size:13px; color:var(--muted); margin-top:6px; } .meal .acts { display:flex; gap:8px; margin-top:10px; }
+.eat { flex:1; height:44px; border-radius:12px; border:1px solid var(--line); background:transparent; color:var(--text); font-size:15px; font-weight:600; }
+.eat.on { background:var(--good); border-color:var(--good); color:#08130e; } .swap { width:44px; height:44px; border-radius:12px; border:1px solid var(--line); background:transparent; color:var(--text); font-size:18px; }
+.macros { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; } .mac .v { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; } .mac .t { font-size:12px; color:var(--muted); }
+.mbar { height:8px; border-radius:4px; background:var(--line); overflow:hidden; margin-top:4px; } .mbar div { height:100%; border-radius:4px; background:var(--accent); } .mbar div.full { background:var(--good); }
+.quick { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; } .quick .chip { padding:0 10px; font-size:14px; }
+.streak { font-size:13px; color:var(--muted); }
 .mob label { display:flex; gap:10px; align-items:center; padding:8px 0; font-size:15px; }
 .mob input { width:22px; height:22px; accent-color:var(--good); }
 .bar { position:fixed; left:0; right:0; bottom:0; padding:12px 14px calc(env(safe-area-inset-bottom) + 12px); background:linear-gradient(transparent, var(--bg) 30%); }
@@ -56,7 +64,7 @@ svg.spark { width:100%; height:40px; }
 <header>
   <div class="row"><h1 id="title">Gym</h1><span id="sync" class="badge"></span></div>
   <div id="sub" class="muted"></div>
-  <nav><button data-tab="today" class="on">Today</button><button data-tab="history">Progress</button><button data-tab="settings">Settings</button></nav>
+  <nav><button data-tab="food">Food</button><button data-tab="today" class="on">Gym</button><button data-tab="history">Progress</button><button data-tab="settings">⚙</button></nav>
 </header>
 <main id="app"></main>
 <div class="bar" id="bar"><div class="inner"><button class="btn" id="finish">Finish and upload</button></div></div>
@@ -113,13 +121,13 @@ function startRest(sec) {
 $("#timer").addEventListener("click", () => { clearInterval(tInt); $("#timer").classList.remove("show"); });
 
 // ---------- views ----------
-let tab = "today";
+let tab = ["food","today","history","settings"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "today";
 function render() {
   document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
   $("#sync").textContent = queue.length ? `${queue.length} to upload` : (settings.key ? "Intervals ✓" : "No API key");
   $("#bar").style.display = tab === "today" ? "" : "none";
   const app = $("#app"); app.innerHTML = "";
-  if (tab === "today") today(app); else if (tab === "history") progress(app); else settingsView(app);
+  if (tab === "today") today(app); else if (tab === "food") food(app); else if (tab === "history") progress(app); else settingsView(app);
 }
 function today(app) {
   if (!cur) { cur = newSession(); save(); }
@@ -210,6 +218,144 @@ function settingsView(app) {
   rs.onclick = () => { if (confirm("Discard the session in progress?")) { cur = null; LS.set("current", null); tab = "today"; render(); } };
 }
 
+// ---------- food: one breakfast, lunch and dinner a day, plus a macro panel ----------
+// Macros per portion are estimates (assumed). Built around the blood test: oats daily, olive oil, fish 2x/week, lean protein.
+const MEALS = {
+  breakfast: [
+    { n:"Overnight oats", d:"80 g oats, 250 g skyr, berries, honey", c:95, p:40, f:7, buy:"oats, skyr, frozen berries, honey" },
+    { n:"Protein porridge", d:"80 g oats in milk, banana, 1 scoop whey, 15 g walnuts", c:100, p:40, f:17, buy:"oats, milk 1.5%, bananas, whey, walnuts" },
+    { n:"Quark bowl", d:"250 g Magerquark, 60 g oats, apple, cinnamon", c:75, p:40, f:5, buy:"Magerquark, oats, apples" },
+    { n:"Arepas con huevo", d:"2 arepas, 1 egg + 2 whites, 50 g avocado, light cheese", c:70, p:30, f:20, buy:"arepa flour (P.A.N.), eggs, avocado, light cheese" },
+    { n:"Salmon bagel", d:"2 bagels, smoked salmon, light cream cheese, cucumber", c:80, p:35, f:14, buy:"bagels, smoked salmon, light cream cheese, cucumber" },
+    { n:"Eggs on rye", d:"3 slices rye bread, 2 eggs + 100 g cottage cheese, tomato", c:60, p:35, f:18, buy:"rye bread, eggs, cottage cheese, tomatoes" },
+  ],
+  lunch: [
+    { n:"Chicken rice bowl", d:"120 g rice, 180 g chicken, peppers, olive oil", c:100, p:50, f:15, buy:"rice, chicken breast, peppers, olive oil" },
+    { n:"Tuna pasta", d:"125 g pasta, 1 can tuna, tomato sauce, spinach, olive oil", c:95, p:45, f:14, buy:"pasta, canned tuna, passata, spinach" },
+    { n:"Chili con carne", d:"150 g lean beef, kidney beans, 100 g rice", c:100, p:45, f:15, buy:"lean beef mince (5%), kidney beans, rice, tomatoes" },
+    { n:"Couscous chicken salad", d:"100 g couscous, chickpeas, 150 g chicken, feta light", c:90, p:45, f:15, buy:"couscous, chickpeas, chicken, light feta, cucumber" },
+    { n:"Potatoes + Kräuterquark", d:"400 g potatoes, 250 g herb quark, 150 g salmon", c:80, p:50, f:20, buy:"potatoes, Kräuterquark, salmon" },
+    { n:"Calentado ligero", d:"rice, black beans, 150 g lean beef, 1 egg, plantain", c:110, p:45, f:16, buy:"rice, black beans, lean beef, eggs, plantain" },
+  ],
+  dinner: [
+    { n:"Salmon, potatoes, broccoli", d:"150 g salmon, 350 g potatoes, broccoli", c:70, p:40, f:22, buy:"salmon, potatoes, broccoli", fish:true },
+    { n:"Turkey noodle stir-fry", d:"100 g noodles, 180 g turkey, frozen wok veg, soy", c:85, p:45, f:10, buy:"noodles, turkey strips, frozen wok vegetables" },
+    { n:"Gnocchi with chicken", d:"400 g gnocchi, 150 g chicken, tomato, parmesan", c:110, p:45, f:12, buy:"gnocchi, chicken, passata, parmesan" },
+    { n:"Mackerel + rice", d:"1 can mackerel, 100 g rice, cucumber salad", c:80, p:30, f:20, buy:"canned mackerel, rice, cucumber", fish:true },
+    { n:"Lentil dal + skyr", d:"100 g red lentils, rice, spinach, 200 g skyr", c:110, p:45, f:8, buy:"red lentils, rice, spinach, coconut-free curry paste, skyr" },
+    { n:"Wraps with beans and chicken", d:"3 whole-wheat wraps, black beans, 150 g chicken, salsa", c:95, p:45, f:12, buy:"wraps, black beans, chicken, salsa" },
+  ],
+};
+const QUICK = [
+  { n:"Skyr 500 g", c:20, p:55, f:1 }, { n:"Whey shake", c:3, p:24, f:2 }, { n:"Banana", c:27, p:1, f:0 },
+  { n:"Bread + honey", c:30, p:4, f:1 }, { n:"Nuts 30 g", c:5, p:6, f:15 }, { n:"Quark 250 g", c:10, p:30, f:1 },
+  { n:"Rice 100 g dry", c:78, p:7, f:1 }, { n:"Gel", c:25, p:0, f:0 },
+];
+const PANTRY = "Keep at home: oats, skyr or Magerquark, eggs, rice, pasta, canned tuna, canned mackerel, frozen berries, frozen veg, bananas, olive oil, nuts.";
+const KG = 78;
+const DAYTYPES = { rest:{ label:"Rest day", c:[4,5], f:1.1 }, easy:{ label:"Easy day", c:[5,6], f:1.05 }, quality:{ label:"Hard day", c:[6,7], f:0.95 }, long:{ label:"Long run day", c:[7,8], f:0.95 } };
+const isoDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+let foodLog = LS.get("food", {});           // { "2026-11-08": { meals:{breakfast:{i, eaten}}, extra:[{n,c,p,f}], type } }
+let foodDirty = LS.get("foodDirty", []);
+
+async function dayType(ds) {
+  const d = foodLog[ds] || {};
+  if (d.type) return d.type;
+  const wd = new Date(ds + "T12:00").getDay();
+  let type = [1,4].includes(wd) ? "quality" : "rest";
+  if (settings.key && navigator.onLine) {
+    try {
+      const r = await fetch(`https://intervals.icu/api/v1/athlete/${settings.athlete}/events?oldest=${ds}&newest=${ds}`, { headers:{ Authorization:auth() } });
+      const ev = (await r.json()).filter((e) => e.category === "WORKOUT").map((e) => e.name || "").join(" ");
+      if (/long/i.test(ev)) type = "long"; else if (/threshold|vo2|interval|tempo|test/i.test(ev)) type = "quality"; else if (ev) type = type === "quality" ? "quality" : "easy";
+    } catch(e) {}
+  }
+  return type;
+}
+function targets(type) { const t = DAYTYPES[type]; return { c:Math.round((t.c[0]+t.c[1])/2*KG), p:Math.round(1.8*KG), f:Math.round(t.f*KG) }; }
+function dayOf(ds) {
+  if (!foodLog[ds]) {
+    const n = Math.floor(new Date(ds + "T12:00").getTime() / 864e5);
+    const wd = new Date(ds + "T12:00").getDay();
+    const fishDay = wd === 2 || wd === 5;   // fish dinner Tue and Fri
+    const nonFish = MEALS.dinner.map((m, i) => (m.fish ? -1 : i)).filter((i) => i >= 0);
+    const din = wd === 2 ? 0 : wd === 5 ? 3 : nonFish[n % nonFish.length];
+    foodLog[ds] = { meals:{ breakfast:{ i:n % MEALS.breakfast.length, eaten:false }, lunch:{ i:(n * 5 + 2) % MEALS.lunch.length, eaten:false }, dinner:{ i:din, eaten:false } }, extra:[] };
+  }
+  return foodLog[ds];
+}
+function totals(d) {
+  const t = { c:0, p:0, f:0 };
+  Object.entries(d.meals).forEach(([k, m]) => { if (m.eaten) { const x = MEALS[k][m.i]; t.c += x.c; t.p += x.p; t.f += x.f; } });
+  d.extra.forEach((x) => { t.c += x.c; t.p += x.p; t.f += x.f; });
+  t.kcal = Math.round(t.c * 4 + t.p * 4 + t.f * 9);
+  return t;
+}
+function saveFood(ds) { LS.set("food", foodLog); if (!foodDirty.includes(ds)) foodDirty.push(ds); LS.set("foodDirty", foodDirty); clearTimeout(saveFood.h); saveFood.h = setTimeout(flushFood, 4000); }
+async function flushFood() {
+  if (!settings.key || !navigator.onLine || !foodDirty.length) return;
+  for (const ds of [...foodDirty]) {
+    const t = totals(dayOf(ds));
+    try {
+      const r = await fetch(`https://intervals.icu/api/v1/athlete/${settings.athlete}/wellness/${ds}`, { method:"PUT", headers:{ Authorization:auth(), "Content-Type":"application/json" }, body:JSON.stringify({ id:ds, carbohydrates:t.c, protein:t.p, fatTotal:t.f, kcalConsumed:t.kcal }) });
+      if (!r.ok) throw new Error(r.status);
+      foodDirty = foodDirty.filter((x) => x !== ds); LS.set("foodDirty", foodDirty);
+    } catch(e) { break; }
+  }
+}
+function streak() {
+  let n = 0; const d = new Date();
+  if (!isDone(isoDay(d))) d.setDate(d.getDate() - 1);
+  while (isDone(isoDay(d))) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+function isDone(ds) { const d = foodLog[ds]; return !!d && Object.values(d.meals).every((m) => m.eaten); }
+
+async function food(app) {
+  const ds = isoDay(), d = dayOf(ds);
+  const type = await dayType(ds); d.type = d.type || type; LS.set("food", foodLog);
+  const tg = targets(d.type), tt = totals(d);
+  $("#title").textContent = "Food";
+  $("#sub").textContent = `${DAYTYPES[d.type].label} · ${tg.c} g carbs, ${tg.p} g protein`;
+  app.innerHTML = "";
+
+  const panel = el("div", "card", null, app);
+  const top = el("div", "row", null, panel); el("div", "tag", "Today", top);
+  const s = streak(); el("span", "streak", s ? `🔥 ${s} day${s > 1 ? "s" : ""} all 3 meals` : "Eat all 3 to start a streak", top);
+  const g = el("div", "macros", null, panel); g.style.marginTop = "8px";
+  [["Carbs","c"],["Protein","p"],["Fat","f"]].forEach(([n, k]) => {
+    const m = el("div", "mac", null, g); el("div", "t", n, m); el("div", "v", `${tt[k]}`, m); el("div", "t", `of ${tg[k]} g`, m);
+    const b = el("div", "mbar", null, m); const fill = el("div", tt[k] >= tg[k] * 0.9 ? "full" : "", null, b); fill.style.width = `${Math.min(100, tt[k] / tg[k] * 100)}%`;
+  });
+  const types = el("div", "quick", null, panel);
+  Object.entries(DAYTYPES).forEach(([k, v]) => { const c = el("button", "chip" + (d.type === k ? " on" : ""), v.label.replace(" day", ""), types); c.onclick = () => { d.type = k; saveFood(ds); render(); }; });
+
+  [["breakfast","Breakfast"],["lunch","Lunch"],["dinner","Dinner"]].forEach(([k, label]) => {
+    const m = d.meals[k], x = MEALS[k][m.i];
+    const c = el("div", "card meal" + (m.eaten ? " done" : ""), null, app);
+    el("div", "when", label + (x.fish ? " · fish day" : ""), c);
+    const r = el("div", "row", null, c); el("div", "ex-name", x.n, r); el("span", "badge", `${x.p} g P`, r);
+    el("div", "cue", x.d, c);
+    el("div", "buy", `🛒 ${x.buy}`, c);
+    const a = el("div", "acts", null, c);
+    const e = el("button", "eat" + (m.eaten ? " on" : ""), m.eaten ? "✓ Eaten" : "I ate it", a);
+    e.onclick = () => { m.eaten = !m.eaten; saveFood(ds); render(); };
+    const sw = el("button", "swap", "↻", a); sw.title = "Swap";
+    sw.onclick = () => { m.i = (m.i + 1) % MEALS[k].length; m.eaten = false; saveFood(ds); render(); };
+  });
+
+  const q = el("div", "card", null, app); el("div", "tag", "Snacks and extras", q);
+  const qq = el("div", "quick", null, q);
+  QUICK.forEach((x) => { const c = el("button", "chip", `+ ${x.n}`, qq); c.onclick = () => { d.extra.push(x); saveFood(ds); toast(`${x.n} added`); render(); }; });
+  if (d.extra.length) {
+    const l = el("div", "hist", null, q); l.style.marginTop = "10px";
+    d.extra.forEach((x, i) => { const r = el("div", "row", null, l); el("span", null, x.n, r); const b = el("button", "chip", "✕", r); b.onclick = () => { d.extra.splice(i, 1); saveFood(ds); render(); }; });
+  }
+  const left = { c:tg.c - tt.c, p:tg.p - tt.p };
+  if (left.p > 20 || left.c > 60) el("div", "cue", `Still to go: ${Math.max(0,left.c)} g carbs, ${Math.max(0,left.p)} g protein. ${left.p > 30 ? "Easiest: skyr or a shake." : ""} ${left.c > 100 ? "Add rice, bread or a banana." : ""}`, q);
+  el("div", "cue", PANTRY, app);
+}
+
 // ---------- upload ----------
 const auth = () => "Basic " + btoa("API_KEY:" + settings.key);
 const ABBR = { tbdl:"Trap-bar DL", bss:"Bulgarian SS", hpc:"Hang power clean", splank:"Side plank", calf:"SL calf raise" };
@@ -248,9 +394,9 @@ $("#finish").onclick = () => {
   flush(); render();
 };
 document.querySelectorAll("nav button").forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
-window.addEventListener("online", flush);
+window.addEventListener("online", () => { flush(); flushFood(); });
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
-render(); flush();
+render(); flush(); flushFood();
 </script>
 </body>
 </html>
