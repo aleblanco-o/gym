@@ -91,18 +91,21 @@ const el = (tag, cls, txt, parent) => { const n = document.createElement(tag); i
 const toast = (t) => { const e = $("#toast"); e.textContent = t; e.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => e.classList.remove("show"), 2600); };
 
 // Next target per exercise from the last session (double progression on RPE).
-function targetFor(ex) {
-  const last = [...history].reverse().find((s) => s.ex[ex.id] && s.ex[ex.id].load !== null && s.ex[ex.id].load !== "");
+// Session A (Tuesday, heavy) drives progression. Session B (Saturday, light): one set fewer, about 90% of the A weight.
+const setsOf = (p, s = cur) => (s && s.v === "B" ? Math.max(2, p.sets - 1) : p.sets);
+function targetFor(ex, v = "A") {
+  if (v === "B") { const a = targetFor(ex, "A"); if (a.load === null) return a; const l = ex.unit === "s" ? a.load : Math.round(a.load * 0.9 / ex.step) * ex.step; return { load:l, note: ex.unit === "s" ? "Light: same hold" : "Light: 90% of A", up:false }; }
+  const last = [...history].reverse().find((s) => s.v !== "B" && s.ex[ex.id] && s.ex[ex.id].load !== null && s.ex[ex.id].load !== "");
   if (!last) return { load: ex.unit === "s" ? 30 : null, note: ex.unit === "s" ? "Start" : "Test: RPE 6 weight", up:false };
   const r = last.ex[ex.id], all = r.done >= ex.sets, load = Number(r.load);
   if (all && r.rpe && r.rpe <= 7) { const n = ex.max ? Math.min(ex.max, load + ex.inc) : load + ex.inc; return { load:n, note:`+${n - load} ${ex.unit} (last: RPE ${r.rpe})`, up:n > load }; }
   if (!all) return { load, note:`Same: ${r.done}/${ex.sets} sets last time`, up:false };
   return { load, note:`Same (last: RPE ${r.rpe || "?"})`, up:false };
 }
-function newSession() {
+function newSession(v = new Date().getDay() === 6 ? "B" : "A") {
   const ex = {};
-  PROGRAM.forEach((p) => { const t = targetFor(p); ex[p.id] = { load: t.load, done:0, rpe:null }; });
-  return { id:"gym-" + Date.now(), start:new Date().toISOString(), mob:[], ex };
+  PROGRAM.forEach((p) => { const t = targetFor(p, v); ex[p.id] = { load: t.load, done:0, rpe:null }; });
+  return { id:"gym-" + Date.now(), start:new Date().toISOString(), mob:[], ex, v };
 }
 const save = () => LS.set("current", cur);
 
@@ -131,10 +134,15 @@ function render() {
 }
 function today(app) {
   if (!cur) { cur = newSession(); save(); }
-  const doneEx = PROGRAM.filter((p) => cur.ex[p.id].done >= p.sets).length;
+  const doneEx = PROGRAM.filter((p) => cur.ex[p.id].done >= setsOf(p)).length;
   $("#title").textContent = "Today";
   $("#sub").textContent = `${doneEx} of ${PROGRAM.length} exercises · ${history.length} sessions logged`;
 
+  const sw = el("div", "quick", null, app);
+  [["A","A · heavy (Tue)"],["B","B · light (Sat)"]].forEach(([v, label]) => {
+    const c = el("button", "chip" + ((cur.v || "A") === v ? " on" : ""), label, sw);
+    c.onclick = () => { if ((cur.v || "A") === v) return; if (PROGRAM.some((p) => cur.ex[p.id].done > 0)) { toast("Sets already logged. Discard in Settings to switch."); return; } cur = newSession(v); save(); render(); };
+  });
   const mob = el("div", "card mob" + (cur.mob.length === MOBILITY.length ? " done" : ""), null, app);
   el("div", "tag", "Mobility · 5 min", mob);
   MOBILITY.forEach((m, i) => {
@@ -143,15 +151,15 @@ function today(app) {
   });
 
   PROGRAM.forEach((p) => {
-    const r = cur.ex[p.id], t = targetFor(p);
-    const card = el("div", "card" + (r.done >= p.sets && r.rpe ? " done" : ""), null, app);
+    const r = cur.ex[p.id], t = targetFor(p, cur.v);
+    const card = el("div", "card" + (r.done >= setsOf(p) && r.rpe ? " done" : ""), null, app);
     el("div", "tag", p.tag, card);
     const top = el("div", "row", null, card);
     el("div", "ex-name", p.name, top);
     el("span", "badge" + (t.up ? " up" : ""), t.note, top);
     el("div", "cue", p.cue, card);
     const row = el("div", "row", null, card);
-    el("div", "muted", `${p.sets} × ${p.unit === "s" ? "" : p.reps + " @"}`, row);
+    el("div", "muted", `${setsOf(p)} × ${p.unit === "s" ? "" : p.reps + " @"}`, row);
     const st = el("div", "stepper", null, row);
     const minus = el("button", null, "−", st), inp = el("input", null, null, st), plus = el("button", null, "+", st);
     inp.inputMode = "decimal"; inp.placeholder = p.unit; inp.value = r.load ?? "";
@@ -161,15 +169,15 @@ function today(app) {
     plus.onclick = () => setLoad((Number(inp.value) || 0) + p.step);
     inp.onchange = () => setLoad(inp.value === "" ? "" : Number(inp.value.replace(",", ".")));
     const sets = el("div", "sets", null, card);
-    for (let i = 0; i < p.sets; i++) {
+    for (let i = 0; i < setsOf(p); i++) {
       const b = el("button", "set" + (i < r.done ? " on" : ""), p.unit === "s" ? `${r.load || ""}s` : String(p.reps), sets);
       b.onclick = () => {
         if (r.load === null) { toast("Enter the weight first"); inp.focus(); return; }
         const wasOn = i < r.done; r.done = wasOn ? i : i + 1; save(); render();
-        if (!wasOn && r.done < p.sets) startRest(p.rest);
+        if (!wasOn && r.done < setsOf(p)) startRest(p.rest);
       };
     }
-    if (r.done >= p.sets) {
+    if (r.done >= setsOf(p)) {
       const rp = el("div", "rpe", null, card); el("span", null, "RPE", rp);
       [6,7,8,9,10].forEach((v) => { const c = el("button", "chip" + (r.rpe === v ? " on" : ""), String(v), rp); c.onclick = () => { r.rpe = v; save(); render(); }; });
     }
@@ -358,7 +366,7 @@ const auth = () => "Basic " + btoa("API_KEY:" + settings.key);
 const ABBR = { tbdl:"Trap-bar DL", bss:"Bulgarian SS", hpc:"Hang power clean", splank:"Side plank", calf:"SL calf raise" };
 function describe(s) {
   const lines = PROGRAM.filter((p) => s.ex[p.id].done > 0).map((p) => { const r = s.ex[p.id]; return p.unit === "s" ? `${ABBR[p.id]}: ${r.done}x${r.load}s/side${r.rpe ? ` RPE ${r.rpe}` : ""}` : `${ABBR[p.id]}: ${r.done}x${p.reps} @ ${r.load} kg${r.rpe ? ` RPE ${r.rpe}` : ""}`; });
-  const data = { v:1, mob:s.mob.length, ex:Object.fromEntries(PROGRAM.map((p) => [p.id, { load:s.ex[p.id].load, sets:s.ex[p.id].done, of:p.sets, reps:p.reps, unit:p.unit, rpe:s.ex[p.id].rpe }])) };
+  const data = { v:1, session:s.v || "A", mob:s.mob.length, ex:Object.fromEntries(PROGRAM.map((p) => [p.id, { load:s.ex[p.id].load, sets:s.ex[p.id].done, of:setsOf(p, s), reps:p.reps, unit:p.unit, rpe:s.ex[p.id].rpe }])) };
   return `${lines.join("\n")}\nMobility ${s.mob.length}/${MOBILITY.length}\n\ngym:${JSON.stringify(data)}`;
 }
 async function upload(s) {
@@ -366,7 +374,7 @@ async function upload(s) {
   const local = new Date(s.start); const pad = (n) => String(n).padStart(2, "0");
   const body = {
     start_date_local:`${local.getFullYear()}-${pad(local.getMonth()+1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}:00`,
-    type:"WeightTraining", name:"Gym: strength", description:describe(s),
+    type:"WeightTraining", name:`Gym: strength ${s.v || "A"}`, description:describe(s),
     moving_time:s.sec, elapsed_time:s.sec, external_id:s.id,
     icu_rpe: rpes.length ? Math.round(rpes.reduce((a,b)=>a+b,0) / rpes.length) : undefined,
   };
@@ -382,7 +390,7 @@ async function flush() {
   render();
 }
 $("#finish").onclick = () => {
-  const missingRpe = PROGRAM.filter((p) => cur.ex[p.id].done >= p.sets && !cur.ex[p.id].rpe);
+  const missingRpe = PROGRAM.filter((p) => cur.ex[p.id].done >= setsOf(p) && !cur.ex[p.id].rpe);
   if (missingRpe.length && !confirm(`No RPE for ${missingRpe.map((p)=>p.name).join(", ")}. Progression needs it. Finish anyway?`)) return;
   cur.sec = Math.max(600, Math.round((Date.now() - new Date(cur.start)) / 1000));
   history.push(cur); queue.push(cur); LS.set("history", history); LS.set("queue", queue);
