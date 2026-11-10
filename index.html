@@ -30,14 +30,12 @@ h1 { font-size:26px; margin:4px 0 2px; } .muted { color:var(--muted); font-size:
 .rpe { display:flex; gap:6px; margin-top:10px; align-items:center; } .rpe span { font-size:13px; color:var(--muted); margin-right:2px; }
 .chip { min-width:40px; height:36px; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--text); font-size:15px; }
 .chip.on { background:var(--accent); border-color:var(--accent); color:#fff; }
-.meal .row { align-items:flex-start; } .meal .when { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
-.meal .buy { font-size:13px; color:var(--muted); margin-top:6px; } .meal .acts { display:flex; gap:8px; margin-top:10px; }
-.eat { flex:1; height:44px; border-radius:12px; border:1px solid var(--line); background:transparent; color:var(--text); font-size:15px; font-weight:600; }
-.eat.on { background:var(--good); border-color:var(--good); color:#100F0F; } .swap { width:44px; height:44px; border-radius:12px; border:1px solid var(--line); background:transparent; color:var(--text); font-size:18px; }
-.macros { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; } .mac .v { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; } .mac .t { font-size:12px; color:var(--muted); }
-.mbar { height:8px; border-radius:4px; background:var(--line); overflow:hidden; margin-top:4px; } .mbar div { height:100%; border-radius:4px; background:var(--accent); } .mbar div.full { background:var(--good); }
+.macros { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; } .mac .v { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; } .mac .t { font-size:12px; color:var(--muted); }
 .quick { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; } .quick .chip { padding:0 10px; font-size:14px; }
-.streak { font-size:13px; color:var(--muted); }
+.list { font-size:14px; } .list .it { padding:8px 0; border-bottom:1px solid var(--line); } .list .it:last-child { border-bottom:0; }
+.list .it b { font-weight:650; } .list .it div { color:var(--muted); font-size:13px; margin-top:2px; }
+.pill { display:inline-block; padding:4px 10px; border-radius:10px; font-size:13px; font-weight:650; }
+.pill.good { background:rgba(135,154,57,.2); color:var(--good); } .pill.warn { background:rgba(208,162,21,.2); color:var(--warn); } .pill.bad { background:rgba(209,77,65,.2); color:var(--red); }
 .mob label { display:flex; gap:10px; align-items:center; padding:8px 0; font-size:15px; }
 .mob input { width:22px; height:22px; accent-color:var(--good); }
 .bar { position:fixed; left:0; right:0; bottom:0; padding:12px 14px calc(env(safe-area-inset-bottom) + 12px); background:linear-gradient(transparent, var(--bg) 30%); }
@@ -64,7 +62,7 @@ svg.spark { width:100%; height:40px; }
 <header>
   <div class="row"><h1 id="title">Gym</h1><span id="sync" class="badge"></span></div>
   <div id="sub" class="muted"></div>
-  <nav><button data-tab="food">Food</button><button data-tab="today" class="on">Gym</button><button data-tab="history">Progress</button><button data-tab="settings">⚙</button></nav>
+  <nav><button data-tab="food">Fuel</button><button data-tab="recovery">Recover</button><button data-tab="today" class="on">Gym</button><button data-tab="history">Progress</button><button data-tab="settings">⚙</button></nav>
 </header>
 <main id="app"></main>
 <div class="bar" id="bar"><div class="inner"><button class="btn" id="finish">Finish and upload</button></div></div>
@@ -124,13 +122,13 @@ function startRest(sec) {
 $("#timer").addEventListener("click", () => { clearInterval(tInt); $("#timer").classList.remove("show"); });
 
 // ---------- views ----------
-let tab = ["food","today","history","settings"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "today";
+let tab = ["food","recovery","today","history","settings"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "today";
 function render() {
   document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
   $("#sync").textContent = queue.length ? `${queue.length} to upload` : (settings.key ? "Intervals ✓" : "No API key");
   $("#bar").style.display = tab === "today" ? "" : "none";
   const app = $("#app"); app.innerHTML = "";
-  if (tab === "today") today(app); else if (tab === "food") food(app); else if (tab === "history") progress(app); else settingsView(app);
+  if (tab === "today") today(app); else if (tab === "food") food(app); else if (tab === "recovery") recovery(app); else if (tab === "history") progress(app); else settingsView(app);
 }
 function today(app) {
   if (!cur) { cur = newSession(); save(); }
@@ -226,139 +224,148 @@ function settingsView(app) {
   rs.onclick = () => { if (confirm("Discard the session in progress?")) { cur = null; LS.set("current", null); tab = "today"; render(); } };
 }
 
-// ---------- food: one breakfast, lunch and dinner a day, plus a macro panel ----------
-// Macros per portion are estimates (assumed). Vegetarian (eggs and dairy), built around the blood test: oats daily, olive oil, lean dairy, legumes, flax and walnuts.
-const MEALS = {
-  breakfast: [
-    { n:"Overnight oats", d:"80 g oats, 250 g skyr, berries, 1 tbsp ground flax", c:95, p:40, f:9, buy:"oats, skyr, frozen berries, ground flaxseed" },
-    { n:"Protein porridge", d:"80 g oats in milk, banana, 1 scoop whey, 15 g walnuts", c:100, p:40, f:17, buy:"oats, milk 1.5%, bananas, whey, walnuts" },
-    { n:"Quark bowl", d:"250 g Magerquark, 60 g oats, apple, cinnamon", c:75, p:40, f:5, buy:"Magerquark, oats, apples" },
-    { n:"Arepas con huevo", d:"2 arepas, 2 eggs, 50 g avocado, light cheese", c:70, p:30, f:22, buy:"arepa flour (P.A.N.), eggs, avocado, light cheese" },
-    { n:"Eggs on rye", d:"3 slices rye bread, 2 eggs + 100 g cottage cheese, tomato", c:60, p:35, f:18, buy:"rye bread, eggs, cottage cheese, tomatoes" },
-    { n:"Tofu scramble toast", d:"200 g tofu, spinach, 2 slices whole-grain toast, 200 g skyr", c:55, p:45, f:16, buy:"firm tofu, spinach, whole-grain bread, skyr" },
-  ],
-  lunch: [
-    { n:"Tofu rice bowl", d:"120 g rice, 200 g tofu, edamame, peppers, soy, olive oil", c:100, p:42, f:18, buy:"rice, firm tofu, frozen edamame, peppers" },
-    { n:"Red lentil pasta", d:"125 g lentil pasta, passata, spinach, 20 g parmesan", c:85, p:40, f:10, buy:"red lentil pasta, passata, spinach, parmesan" },
-    { n:"Veggie chili", d:"150 g soy mince, kidney + black beans, 100 g rice", c:105, p:45, f:10, buy:"soy mince, kidney beans, black beans, rice, tomatoes" },
-    { n:"Chickpea couscous salad", d:"100 g couscous, chickpeas, light feta, cucumber, 150 g skyr dip", c:95, p:38, f:14, buy:"couscous, chickpeas, light feta, cucumber, skyr" },
-    { n:"Potatoes + Kräuterquark", d:"400 g potatoes, 250 g herb quark, 2 eggs", c:80, p:42, f:15, buy:"potatoes, Kräuterquark, eggs" },
-    { n:"Calentado vegetariano", d:"rice, black beans, 2 eggs, plantain, a little avocado", c:115, p:30, f:20, buy:"rice, black beans, eggs, plantain, avocado" },
-  ],
-  dinner: [
-    { n:"Tempeh noodle stir-fry", d:"100 g noodles, 150 g tempeh, frozen wok veg, soy", c:90, p:40, f:15, buy:"noodles, tempeh, frozen wok vegetables" },
-    { n:"Lentil dal + skyr", d:"100 g red lentils, rice, spinach, 200 g skyr", c:110, p:45, f:8, buy:"red lentils, rice, spinach, curry paste, skyr" },
-    { n:"Shakshuka", d:"3 eggs, chickpeas, tomato, peppers, bread", c:70, p:35, f:20, buy:"eggs, chickpeas, passata, peppers, bread" },
-    { n:"Bean and cheese wraps", d:"3 whole-wheat wraps, black beans, light cheese, Greek yoghurt", c:95, p:40, f:15, buy:"wraps, black beans, light cheese, Greek yoghurt 0.2%" },
-    { n:"Seitan bulgur bowl", d:"150 g seitan, 80 g bulgur, hummus, salad", c:80, p:50, f:12, buy:"seitan, bulgur, hummus, salad" },
-    { n:"Gnocchi with white beans", d:"400 g gnocchi, white beans, tomato, 30 g parmesan", c:115, p:32, f:10, buy:"gnocchi, white beans, passata, parmesan" },
-  ],
-};const QUICK = [
-  { n:"Skyr 500 g", c:20, p:55, f:1 }, { n:"Whey shake", c:3, p:24, f:2 }, { n:"Banana", c:27, p:1, f:0 },
-  { n:"Bread + honey", c:30, p:4, f:1 }, { n:"Nuts 30 g", c:5, p:6, f:15 }, { n:"Quark 250 g", c:10, p:30, f:1 },
-  { n:"Rice 100 g dry", c:78, p:7, f:1 }, { n:"Gel", c:25, p:0, f:0 },
-];
-const PANTRY = "Keep at home: oats, skyr or Magerquark, eggs, tofu, red lentils, canned beans and chickpeas, rice, pasta, frozen edamame, frozen veg and berries, bananas, walnuts, ground flax, olive oil.";
+// ---------- fuel: macro and micro targets for the day (no meal suggestions, athlete 2026-11-10) ----------
+// Mirrors 03 ToDo/Nutrition/nutrition_plan.json (change both). Grams are derived from g/kg guidelines.
 const KG = 78;
-const DAYTYPES = { rest:{ label:"Rest day", c:[4,5], f:1.1 }, easy:{ label:"Easy day", c:[5,6], f:1.05 }, quality:{ label:"Hard day", c:[6,7], f:0.95 }, long:{ label:"Long run day", c:[7,8], f:0.95 } };
+const DAYTYPES = {
+  rest:{ label:"Rest day", c:[4,5], f:[1.0,1.2], note:"Carbs from whole foods. Protein stays high for repair. Saturated fat under about 30 g." },
+  easy:{ label:"Easy day", c:[5,6], f:[1.0,1.1], note:"Normal meals. 20-40 g protein within 2 h after training. Oats at breakfast." },
+  volleyball:{ label:"Volleyball day", c:[5,6], f:[1.0,1.1], note:"About 600 kcal of real work, not the 1,000 the watch shows (pauses counted). Snack 18:30, after 22:00 carbs + 30 g protein, then sleep." },
+  quality:{ label:"Hard run day", c:[6,7], f:[0.9,1.0], note:"Carb snack 1-2 h before. Carbs + 30 g protein within 2 h after." },
+  long:{ label:"Long run day", c:[7,8], f:[0.9,1.0], note:"Carb-rich dinner the night before. Over 75 min: 30-60 g carbs per hour. Within 1 h after: 1 g/kg carbs + 30 g protein." },
+};
+const MICROS = [
+  ["Iron", "Lentils, beans, tofu, oats, pumpkin seeds, with vitamin C. No coffee or tea within 1 h. Ferritin not tested yet"],
+  ["Oats, soluble fibre", "70-80 g oats a day (3 g beta-glucan), beans, barley, apples. Lowers LDL"],
+  ["Good fats", "Olive or rapeseed oil, 30 g nuts. Saturated fat under 10% of energy (LDL 118)"],
+  ["Omega-3", "Walnuts, ground flax, chia daily + algae oil 250-500 mg EPA+DHA"],
+  ["Calcium", "2-3 servings: skyr, Magerquark, milk or fortified drinks"],
+  ["Vitamin D", "D3 1000-2000 IU Oct-Mar with a fatty meal, eggs"],
+  ["Magnesium", "Nuts, seeds, oats, legumes; 200-300 mg glycinate before bed"],
+  ["B12, folate", "Eggs and dairy daily, leafy greens. Test B12 (vegetarian)"],
+  ["Potassium, sodium", "Bananas, potatoes; salt on sweaty days"],
+  ["Fibre, polyphenols", "5 colours a day, 30-40 g fibre"],
+  ["Creatine", "3-5 g daily, any time"],
+];
 const isoDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-let foodLog = LS.get("food", {});           // { "2026-11-08": { meals:{breakfast:{i, eaten}}, extra:[{n,c,p,f}], type } }
-let foodDirty = LS.get("foodDirty", []);
+let foodLog = LS.get("food", {});           // only the day-type override: { "2026-11-10": { type } }
 
 async function dayType(ds) {
   const d = foodLog[ds] || {};
-  if (d.type) return d.type;
+  if (d.type && DAYTYPES[d.type]) return d.type;
   const wd = new Date(ds + "T12:00").getDay();
-  let type = [1,4].includes(wd) ? "quality" : "rest";
+  let type = [1,4].includes(wd) ? "volleyball" : "rest";
   if (settings.key && navigator.onLine) {
     try {
       const r = await fetch(`https://intervals.icu/api/v1/athlete/${settings.athlete}/events?oldest=${ds}&newest=${ds}`, { headers:{ Authorization:auth() } });
       const ev = (await r.json()).filter((e) => e.category === "WORKOUT").map((e) => e.name || "").join(" ");
-      if (/long/i.test(ev)) type = "long"; else if (/threshold|vo2|interval|tempo|test/i.test(ev)) type = "quality"; else if (ev) type = type === "quality" ? "quality" : "easy";
+      if (/long/i.test(ev)) type = "long"; else if (/threshold|vo2|interval|tempo|test/i.test(ev)) type = "quality"; else if (ev && type === "rest") type = "easy";
     } catch(e) {}
   }
   return type;
 }
-function targets(type) { const t = DAYTYPES[type]; return { c:Math.round((t.c[0]+t.c[1])/2*KG), p:Math.round(1.8*KG), f:Math.round(t.f*KG) }; }
-function dayOf(ds) {
-  if (!foodLog[ds]) {
-    const n = Math.floor(new Date(ds + "T12:00").getTime() / 864e5);
-    const wd = new Date(ds + "T12:00").getDay();
-    const din = (n * 3 + 1) % MEALS.dinner.length;
-    foodLog[ds] = { meals:{ breakfast:{ i:n % MEALS.breakfast.length, eaten:false }, lunch:{ i:(n * 5 + 2) % MEALS.lunch.length, eaten:false }, dinner:{ i:din, eaten:false } }, extra:[] };
-  }
-  return foodLog[ds];
+function targets(type) {
+  const t = DAYTYPES[type], g = (r) => [Math.round(r[0]*KG), Math.round(r[1]*KG)];
+  const c = g(t.c), p = g([1.6,2.0]), f = g(t.f);
+  return { c, p, f, kcal:[c[0]*4+p[0]*4+f[0]*9, c[1]*4+p[1]*4+f[1]*9].map((x) => Math.round(x/50)*50), sat:Math.round((c[0]*4+p[0]*4+f[0]*9) * 0.1 / 9) };
 }
-function totals(d) {
-  const t = { c:0, p:0, f:0 };
-  Object.entries(d.meals).forEach(([k, m]) => { if (m.eaten) { const x = MEALS[k][m.i]; t.c += x.c; t.p += x.p; t.f += x.f; } });
-  d.extra.forEach((x) => { t.c += x.c; t.p += x.p; t.f += x.f; });
-  t.kcal = Math.round(t.c * 4 + t.p * 4 + t.f * 9);
-  return t;
-}
-function saveFood(ds) { LS.set("food", foodLog); if (!foodDirty.includes(ds)) foodDirty.push(ds); LS.set("foodDirty", foodDirty); clearTimeout(saveFood.h); saveFood.h = setTimeout(flushFood, 4000); }
-async function flushFood() {
-  if (!settings.key || !navigator.onLine || !foodDirty.length) return;
-  for (const ds of [...foodDirty]) {
-    const t = totals(dayOf(ds));
-    try {
-      const r = await fetch(`https://intervals.icu/api/v1/athlete/${settings.athlete}/wellness/${ds}`, { method:"PUT", headers:{ Authorization:auth(), "Content-Type":"application/json" }, body:JSON.stringify({ id:ds, carbohydrates:t.c, protein:t.p, fatTotal:t.f, kcalConsumed:t.kcal }) });
-      if (!r.ok) throw new Error(r.status);
-      foodDirty = foodDirty.filter((x) => x !== ds); LS.set("foodDirty", foodDirty);
-    } catch(e) { break; }
-  }
-}
-function streak() {
-  let n = 0; const d = new Date();
-  if (!isDone(isoDay(d))) d.setDate(d.getDate() - 1);
-  while (isDone(isoDay(d))) { n++; d.setDate(d.getDate() - 1); }
-  return n;
-}
-function isDone(ds) { const d = foodLog[ds]; return !!d && Object.values(d.meals).every((m) => m.eaten); }
 
 async function food(app) {
-  const ds = isoDay(), d = dayOf(ds);
-  const type = await dayType(ds); d.type = d.type || type; LS.set("food", foodLog);
-  const tg = targets(d.type), tt = totals(d);
-  $("#title").textContent = "Food";
-  $("#sub").textContent = `${DAYTYPES[d.type].label} · ${tg.c} g carbs, ${tg.p} g protein`;
+  const ds = isoDay(); const type = await dayType(ds); const tg = targets(type), t = DAYTYPES[type];
+  if (tab !== "food") return;
+  $("#title").textContent = "Fuel";
+  $("#sub").textContent = `${t.label} · targets for ${KG} kg (derived)`;
   app.innerHTML = "";
 
-  const panel = el("div", "card", null, app);
-  const top = el("div", "row", null, panel); el("div", "tag", "Today", top);
-  const s = streak(); el("span", "streak", s ? `🔥 ${s} day${s > 1 ? "s" : ""} all 3 meals` : "Eat all 3 to start a streak", top);
+  const panel = el("div", "card", null, app); el("div", "tag", "Macros today", panel);
   const g = el("div", "macros", null, panel); g.style.marginTop = "8px";
-  [["Carbs","c"],["Protein","p"],["Fat","f"]].forEach(([n, k]) => {
-    const m = el("div", "mac", null, g); el("div", "t", n, m); el("div", "v", `${tt[k]}`, m); el("div", "t", `of ${tg[k]} g`, m);
-    const b = el("div", "mbar", null, m); const fill = el("div", tt[k] >= tg[k] * 0.9 ? "full" : "", null, b); fill.style.width = `${Math.min(100, tt[k] / tg[k] * 100)}%`;
+  [["Carbs", tg.c], ["Protein", tg.p], ["Fat", tg.f], ["kcal", tg.kcal]].forEach(([n, r]) => {
+    const m = el("div", "mac", null, g); el("div", "t", n, m); el("div", "v", `${r[0]}`, m); el("div", "t", `to ${r[1]}${n === "kcal" ? "" : " g"}`, m);
   });
+  el("div", "cue", `Protein in 4-5 doses of 30-40 g. Saturated fat under ${tg.sat} g. kcal is a guide, not a number to count.`, panel);
+  el("div", "cue", t.note, panel);
   const types = el("div", "quick", null, panel);
-  Object.entries(DAYTYPES).forEach(([k, v]) => { const c = el("button", "chip" + (d.type === k ? " on" : ""), v.label.replace(" day", ""), types); c.onclick = () => { d.type = k; saveFood(ds); render(); }; });
+  Object.entries(DAYTYPES).forEach(([k, v]) => { const c = el("button", "chip" + (type === k ? " on" : ""), v.label.replace(" day", ""), types); c.onclick = () => { foodLog[ds] = { type:k }; LS.set("food", foodLog); render(); }; });
 
-  [["breakfast","Breakfast"],["lunch","Lunch"],["dinner","Dinner"]].forEach(([k, label]) => {
-    const m = d.meals[k], x = MEALS[k][m.i];
-    const c = el("div", "card meal" + (m.eaten ? " done" : ""), null, app);
-    el("div", "when", label, c);
-    const r = el("div", "row", null, c); el("div", "ex-name", x.n, r); el("span", "badge", `${x.p} g P`, r);
-    el("div", "cue", x.d, c);
-    el("div", "buy", `🛒 ${x.buy}`, c);
-    const a = el("div", "acts", null, c);
-    const e = el("button", "eat" + (m.eaten ? " on" : ""), m.eaten ? "✓ Eaten" : "I ate it", a);
-    e.onclick = () => { m.eaten = !m.eaten; saveFood(ds); render(); };
-    const sw = el("button", "swap", "↻", a); sw.title = "Swap";
-    sw.onclick = () => { m.i = (m.i + 1) % MEALS[k].length; m.eaten = false; saveFood(ds); render(); };
-  });
+  const mc = el("div", "card list", null, app); el("div", "tag", "Micros to keep in mind", mc);
+  MICROS.forEach(([n, d]) => { const it = el("div", "it", null, mc); el("b", null, n, it); el("div", null, d, it); });
+}
 
-  const q = el("div", "card", null, app); el("div", "tag", "Snacks and extras", q);
-  const qq = el("div", "quick", null, q);
-  QUICK.forEach((x) => { const c = el("button", "chip", `+ ${x.n}`, qq); c.onclick = () => { d.extra.push(x); saveFood(ds); toast(`${x.n} added`); render(); }; });
-  if (d.extra.length) {
-    const l = el("div", "hist", null, q); l.style.marginTop = "10px";
-    d.extra.forEach((x, i) => { const r = el("div", "row", null, l); el("span", null, x.n, r); const b = el("button", "chip", "✕", r); b.onclick = () => { d.extra.splice(i, 1); saveFood(ds); render(); }; });
+// ---------- recovery: last night from Intervals.icu wellness + tips for the day ----------
+const REC_DAY = {
+  rest:["Rest means rest: walk 20-30 min, 10 min mobility, nothing hard.", "Use the day to bank sleep: 30-60 min earlier to bed.", "Keep protein high: 4-5 doses even without training."],
+  easy:["Keep it truly easy: HR in Zone 1-2. Easy days make hard days possible.", "10 min hip and glute work after (side plank, clams): the ITBS knee likes it.", "Gym day: skip ice baths for 4-6 h after. Cold water blunts strength gains."],
+  volleyball:["18:30 snack: bread, banana or rice cakes. Water bottle to training.", "10 min hip activation before. Land on two feet, knee over the 2nd toe.", "After 22:00: carbs + 30 g protein, warm shower, dim lights, no screens 30 min.", "Late heart rate keeps you awake: aim for lights out by 23:30 and 8 h in bed.", "Next morning: if HRV is low, make the run easy."],
+  quality:["Cool down 10 min easy, then carbs + 30 g protein within 2 h.", "Legs up or easy walk in the evening, no second hard session.", "If you sleep badly tonight, tomorrow stays easy."],
+  long:["Weigh before and after: drink 1-1.5 L per kg lost, with salt.", "Within 1 h: about 80 g carbs + 30 g protein.", "A 20-30 min nap before 15:00 helps. Evening: 15 min walk, mobility.", "Next day easy or rest. Knee check the next morning."],
+};
+const REC_TIPS = [
+  "Sleep is the strongest recovery tool: 8-9 h in bed. Extra sleep made athletes faster and more accurate in studies.",
+  "Same wake-up time every day, also weekends. 10 min of daylight in the morning sets the clock.",
+  "No caffeine after 14:00. Caffeine stays in the body 5-6 h.",
+  "Alcohol lowers HRV and deep sleep for 1-2 nights, even in small amounts.",
+  "Bedroom cool (17-19 °C) and dark. A warm shower 1-2 h before bed helps you fall asleep.",
+  "30-40 g casein (Magerquark) before bed supports overnight repair.",
+  "Foam rolling lowers soreness a little but doesn't fix the IT band. Strong glutes do.",
+  "Under-eating looks like over-training: falling HRV, weight and mood. Eat more first.",
+  "Hard days hard, easy days easy. Most poor recovery is grey-zone running.",
+  "Heavy week? Tart cherry juice or more fruit and veg can ease soreness. Food first.",
+  "Stress counts as load. On a stressful work day, a hard session can wait.",
+  "Compression socks after long runs: small effect on soreness, harmless.",
+];
+let recChecks = LS.get("recChecks", {});
+const HABITS = ["8 h in bed", "Protein 4+ doses", "10 min mobility", "No caffeine after 14:00", "No screens 30 min before bed"];
+
+async function recovery(app) {
+  const ds = isoDay(); const type = await dayType(ds);
+  if (tab !== "recovery") return;
+  $("#title").textContent = "Recover"; $("#sub").textContent = `${DAYTYPES[type].label} · last night from Intervals.icu`;
+  app.innerHTML = "";
+
+  const night = el("div", "card", null, app); el("div", "tag", "Last night", night);
+  const body = el("div", null, null, night);
+  if (!settings.key || !navigator.onLine) el("div", "cue", settings.key ? "Offline. Tips below still apply." : "Add your API key in Settings to see sleep and HRV.", body);
+  else {
+    try {
+      const old = new Date(); old.setDate(old.getDate() - 28);
+      const r = await fetch(`https://intervals.icu/api/v1/athlete/${settings.athlete}/wellness?oldest=${isoDay(old)}&newest=${ds}`, { headers:{ Authorization:auth() } });
+      const w = (await r.json()).sort((a, b) => a.id < b.id ? -1 : 1);
+      const today = w.find((x) => x.id === ds && (x.hrv || x.sleepSecs || x.restingHR)) || w.filter((x) => x.hrv || x.sleepSecs).pop() || {};
+      const base = w.filter((x) => x.id !== today.id);
+      const stat = (k) => { const v = base.map((x) => x[k]).filter((x) => x); if (v.length < 5) return null; const m = v.reduce((a,b)=>a+b,0)/v.length; return { m, sd:Math.sqrt(v.reduce((a,b)=>a+(b-m)**2,0)/v.length) }; };
+      const hs = stat("hrv"), rs = stat("restingHR");
+      const sleepH = today.sleepSecs ? today.sleepSecs / 3600 : null;
+      let flags = 0, notes = [];
+      if (hs && today.hrv && today.hrv < hs.m - hs.sd) { flags++; notes.push("HRV below your usual range"); }
+      if (rs && today.restingHR && today.restingHR > rs.m + Math.max(3, rs.sd)) { flags++; notes.push("resting HR up"); }
+      if (sleepH !== null && sleepH < 6.5) { flags++; notes.push("short sleep"); }
+      const g = el("div", "macros", null, body); g.style.marginTop = "8px";
+      [["Sleep", sleepH !== null ? `${sleepH.toFixed(1)} h` : "–", today.sleepScore ? `score ${today.sleepScore}` : ""],
+       ["HRV", today.hrv ? Math.round(today.hrv) : "–", hs ? `usual ${Math.round(hs.m)}` : ""],
+       ["Rest HR", today.restingHR || "–", rs ? `usual ${Math.round(rs.m)}` : ""],
+       ["Form", today.ctl != null && today.atl != null ? Math.round(today.ctl - today.atl) : "–", "CTL − ATL"]].forEach(([n, v, s]) => { const m = el("div", "mac", null, g); el("div", "t", n, m); el("div", "v", String(v), m); el("div", "t", s, m); });
+      const p = el("div", null, null, body); p.style.marginTop = "10px";
+      const [cls, txt] = flags === 0 ? ["good", "Recovered: train as planned"] : flags === 1 ? ["warn", `Careful: ${notes[0]}. Keep today easy-ish`] : ["bad", `Back off: ${notes.join(", ")}. Easy or rest`];
+      el("span", "pill " + cls, txt, p);
+      if (today.id && today.id !== ds) el("div", "cue", `Latest data from ${today.id}. Sync the watch for today.`, body);
+    } catch(e) { el("div", "cue", "Couldn't load wellness data.", body); }
   }
-  const left = { c:tg.c - tt.c, p:tg.p - tt.p };
-  if (left.p > 20 || left.c > 60) el("div", "cue", `Still to go: ${Math.max(0,left.c)} g carbs, ${Math.max(0,left.p)} g protein. ${left.p > 30 ? "Easiest: skyr or a shake." : ""} ${left.c > 100 ? "Add rice, bread or a banana." : ""}`, q);
-  el("div", "cue", PANTRY, app);
+
+  const td = el("div", "card list", null, app); el("div", "tag", `Today · ${DAYTYPES[type].label}`, td);
+  REC_DAY[type].forEach((x) => el("div", "it", x, td));
+
+  const hb = el("div", "card mob", null, app); el("div", "tag", "Recovery habits today", hb);
+  const done = recChecks[ds] || [];
+  HABITS.forEach((h, i) => {
+    const l = el("label", null, null, hb); const c = el("input", null, null, l); c.type = "checkbox"; c.checked = done.includes(i); el("span", null, h, l);
+    c.addEventListener("change", () => { recChecks[ds] = c.checked ? [...done, i] : done.filter((x) => x !== i); Object.keys(recChecks).sort().slice(0, -30).forEach((k) => delete recChecks[k]); LS.set("recChecks", recChecks); render(); });
+  });
+  let n = 0; const d = new Date(); if ((recChecks[isoDay(d)] || []).length < HABITS.length) d.setDate(d.getDate() - 1);
+  while ((recChecks[isoDay(d)] || []).length >= 4) { n++; d.setDate(d.getDate() - 1); }
+  el("div", "cue", n ? `${n} day${n > 1 ? "s" : ""} in a row with 4+ habits` : "4 of 5 habits a day starts a streak.", hb);
+
+  const tip = el("div", "card", null, app); el("div", "tag", "Tip of the day", tip);
+  el("div", null, REC_TIPS[Math.floor(Date.now() / 864e5) % REC_TIPS.length], tip);
 }
 
 // ---------- upload ----------
@@ -399,9 +406,9 @@ $("#finish").onclick = () => {
   flush(); render();
 };
 document.querySelectorAll("nav button").forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
-window.addEventListener("online", () => { flush(); flushFood(); });
+window.addEventListener("online", () => { flush(); });
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
-render(); flush(); flushFood();
+render(); flush();
 </script>
 </body>
 </html>
