@@ -1,5 +1,5 @@
 ﻿// Offline cache: the app works in the gym without signal. Uploads wait in a queue.
-const C = "gym-v202611111159";
+const C = "gym-v202611112332";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon.svg"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(C).then((c) => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener("activate", (e) => { e.waitUntil(caches.keys().then((k) => Promise.all(k.filter((x) => x !== C).map((x) => caches.delete(x))))); self.clients.claim(); });

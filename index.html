@@ -70,7 +70,7 @@ svg.spark { width:100%; height:40px; }
 <header>
   <div class="row"><h1 id="title">Gym</h1><div class="row"><span id="sync" class="badge"></span><button id="theme" class="theme" aria-label="Night mode"></button></div></div>
   <div id="sub" class="muted"></div>
-  <nav><button data-tab="food">Fuel</button><button data-tab="recovery">Recover</button><button data-tab="today" class="on">Gym</button><button data-tab="history">Progress</button><button data-tab="settings">⚙</button></nav>
+  <nav><button data-tab="home" class="on">Today</button><button data-tab="today">Gym</button><button data-tab="food">Fuel</button><button data-tab="history">Progress</button><button data-tab="settings" aria-label="Settings">⚙ Set</button></nav>
 </header>
 <main id="app"></main>
 <div class="bar" id="bar"><div class="inner"><button class="btn" id="finish">Finish and upload</button></div></div>
@@ -81,7 +81,7 @@ const PROGRAM = [
   { id:"tbdl", name:"Trap-bar deadlift", tag:"Max strength", sets:4, reps:5, unit:"kg", step:2.5, inc:5, rest:180, cue:"Brace, push the floor away. Every rep crisp, stop 1-2 reps before failure." },
   { id:"bss", name:"Bulgarian split squat", tag:"Max strength · per leg", sets:3, reps:6, unit:"kg", step:1, inc:2, rest:120, cue:"Total dumbbell weight. Knee tracks over the 2nd toe, hips level." },
   { id:"hpc", name:"Hang power clean", tag:"Explosive", sets:5, reps:3, unit:"kg", step:2.5, inc:2.5, rest:120, cue:"Maximal speed. If the bar slows or form breaks, keep the weight." },
-  { id:"splank", name:"Side plank + hip abduction", tag:"Isometric · per side", sets:3, reps:1, unit:"s", step:5, inc:5, max:60, rest:60, cue:"Top leg lifted. Straight line ear-hip-ankle. Weight goes on the hip after 60 s." },
+  { id:"splank", name:"Side plank + hip abduction", tag:"Isometric · per side", sets:3, reps:1, unit:"s", step:5, inc:5, max:60, rest:60, sides:true, cue:"Top leg lifted. Straight line ear-hip-ankle. Log each side: a gap over 10-15% is worth showing the physio." },
   { id:"calf", name:"Single-leg calf raise, bent knee", tag:"Strength + isometric · per leg", sets:3, reps:8, unit:"kg", step:1, inc:2, rest:60, cue:"Knee bent ~30°. 3 s hold at the top. Weight in the hand." },
 ];
 const MOBILITY = ["Hip 90/90, 1 min", "Ankle to wall, 1 min per side", "Thoracic rotation, 10 per side"];
@@ -116,13 +116,21 @@ function newSession(v = new Date().getDay() === 6 ? "B" : "A") {
 const save = () => LS.set("current", cur);
 
 // ---------- rest timer ----------
-let tEnd = 0, tInt = null;
+let tEnd = 0, tInt = null, actx = null;
+// Two short tones when the rest ends (iPhones don't vibrate from the web). The audio context starts on the set tap.
+function beep() {
+  try {
+    if (!actx) return;
+    [0, 0.25].forEach((dt) => { const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = 880; g.gain.value = 0.2; o.connect(g); g.connect(actx.destination); o.start(actx.currentTime + dt); o.stop(actx.currentTime + dt + 0.15); });
+  } catch (e) {}
+}
 function startRest(sec) {
+  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === "suspended") actx.resume(); } catch (e) {}
   tEnd = Date.now() + sec * 1000; clearInterval(tInt);
   const t = $("#timer"); t.classList.add("show"); t.classList.remove("over");
   const tick = () => {
     const left = Math.round((tEnd - Date.now()) / 1000);
-    if (left <= 0) { t.textContent = "Go"; t.classList.add("over"); if (left === 0 && navigator.vibrate) navigator.vibrate([200,100,200]); if (left < -20) { clearInterval(tInt); t.classList.remove("show"); } return; }
+    if (left <= 0) { t.textContent = "Go"; t.classList.add("over"); if (left === 0) { if (navigator.vibrate) navigator.vibrate([200,100,200]); beep(); } if (left < -20) { clearInterval(tInt); t.classList.remove("show"); } return; }
     t.textContent = `Rest ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`;
   };
   tick(); tInt = setInterval(tick, 1000);
@@ -130,13 +138,13 @@ function startRest(sec) {
 $("#timer").addEventListener("click", () => { clearInterval(tInt); $("#timer").classList.remove("show"); });
 
 // ---------- views ----------
-let tab = ["food","recovery","today","history","settings"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "today";
+let tab = { recovery:"home", gym:"today" }[location.hash.slice(1)] || (["home","food","today","history","settings"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "home");
 function render() {
   document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
   $("#sync").textContent = queue.length ? `${queue.length} to upload` : (settings.key ? "Intervals ✓" : "No API key");
   $("#bar").style.display = tab === "today" ? "" : "none";
   const app = $("#app"); app.innerHTML = "";
-  if (tab === "today") today(app); else if (tab === "food") food(app); else if (tab === "recovery") recovery(app); else if (tab === "history") progress(app); else settingsView(app);
+  if (tab === "today") today(app); else if (tab === "home") home(app); else if (tab === "food") food(app); else if (tab === "history") progress(app); else settingsView(app);
 }
 function today(app) {
   if (!cur) { cur = newSession(); save(); }
@@ -164,16 +172,27 @@ function today(app) {
     el("div", "ex-name", p.name, top);
     el("span", "badge" + (t.up ? " up" : ""), t.note, top);
     el("div", "cue", p.cue, card);
-    const row = el("div", "row", null, card);
-    el("div", "muted", `${setsOf(p)} × ${p.unit === "s" ? "" : p.reps + " @"}`, row);
-    const st = el("div", "stepper", null, row);
-    const minus = el("button", null, "−", st), inp = el("input", null, null, st), plus = el("button", null, "+", st);
-    inp.inputMode = "decimal"; inp.placeholder = p.unit; inp.value = r.load ?? "";
-    el("span", "muted", p.unit, st);
-    const setLoad = (v) => { r.load = v === "" || isNaN(v) ? null : Math.max(0, Math.round(v * 10) / 10); save(); inp.value = r.load ?? ""; };
-    minus.onclick = () => setLoad((Number(inp.value) || 0) - p.step);
-    plus.onclick = () => setLoad((Number(inp.value) || 0) + p.step);
-    inp.onchange = () => setLoad(inp.value === "" ? "" : Number(inp.value.replace(",", ".")));
+    // One stepper, or left and right for exercises logged per side (the load is then the weaker side).
+    const sides = p.sides ? [["L", "loadL"], ["R", "loadR"]] : [["", "load"]];
+    if (p.sides) { if (r.loadL === undefined) r.loadL = r.load; if (r.loadR === undefined) r.loadR = r.load; }
+    let inp = null;
+    sides.forEach(([lab, key], si) => {
+      const row = el("div", "row", null, card); if (si) row.style.marginTop = "6px";
+      el("div", "muted", lab ? `${lab === "L" ? "Left" : "Right"} side` : `${setsOf(p)} × ${p.unit === "s" ? "" : p.reps + " @"}`, row);
+      const st = el("div", "stepper", null, row);
+      const minus = el("button", null, "−", st), box = el("input", null, null, st), plus = el("button", null, "+", st);
+      box.inputMode = "decimal"; box.placeholder = p.unit; box.value = r[key] ?? "";
+      el("span", "muted", p.unit, st);
+      const setLoad = (v) => {
+        r[key] = v === "" || isNaN(v) ? null : Math.max(0, Math.round(v * 10) / 10); box.value = r[key] ?? "";
+        if (p.sides) r.load = r.loadL != null && r.loadR != null ? Math.min(r.loadL, r.loadR) : (r.loadL ?? r.loadR ?? null);
+        save();
+      };
+      minus.onclick = () => setLoad((Number(box.value) || 0) - p.step);
+      plus.onclick = () => setLoad((Number(box.value) || 0) + p.step);
+      box.onchange = () => setLoad(box.value === "" ? "" : Number(box.value.replace(",", ".")));
+      if (!inp) inp = box;
+    });
     const sets = el("div", "sets", null, card);
     for (let i = 0; i < setsOf(p); i++) {
       const b = el("button", "set" + (i < r.done ? " on" : ""), p.unit === "s" ? `${r.load || ""}s` : String(p.reps), sets);
@@ -193,12 +212,28 @@ function today(app) {
 function progress(app) {
   $("#title").textContent = "Progress";
   $("#sub").textContent = `${history.length} sessions`;
+  // Weeks with 2 sessions (the plan): last 8 weeks and the current streak. Habit feedback, not a score.
+  const mon = (d) => { const x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return isoDay(x); };
+  const wk = {}; history.forEach((s) => { const m = mon(s.start); wk[m] = (wk[m] || 0) + 1; });
+  const weeks = [...Array(8)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() - 7 * (7 - i)); return wk[mon(d)] || 0; });
+  let streak = 0; for (let i = 6; i >= 0 && weeks[i] >= 2; i--) streak++;
+  if (weeks[7] >= 2) streak++;
+  const wc = el("div", "card", null, app);
+  const wt = el("div", "row", null, wc); el("div", "tag", "Sessions per week · target 2", wt);
+  el("span", "badge" + (streak ? " up" : ""), streak ? `${streak} week${streak > 1 ? "s" : ""} in a row` : "Start a streak", wt);
+  const wg = el("div", "sets", null, wc);
+  weeks.forEach((n, i) => { const b = el("div", "set" + (n >= 2 ? " on" : ""), String(n), wg); b.style.display = "flex"; b.style.alignItems = "center"; b.style.justifyContent = "center"; b.title = i === 7 ? "this week" : `${7 - i} weeks ago`; });
+  el("div", "cue", "Last 8 weeks, this week on the right. Hip and calf strength is what protects the ITB knee.", wc);
   if (!history.length) { el("div", "card muted", "Your first session sets the starting weights. Progress shows here after it.", app); return; }
   PROGRAM.forEach((p) => {
-    const pts = history.filter((s) => s.ex[p.id] && s.ex[p.id].load).map((s) => ({ d:s.start, v:Number(s.ex[p.id].load), rpe:s.ex[p.id].rpe }));
+    // Estimated 1-rep max (Epley: load x (1 + reps / 30)) makes sessions with different reps comparable.
+    const pts = history.filter((s) => s.ex[p.id] && s.ex[p.id].load).map((s) => ({ d:s.start, v: p.unit === "kg" ? Math.round(Number(s.ex[p.id].load) * (1 + p.reps / 30) * 10) / 10 : Number(s.ex[p.id].load), load:Number(s.ex[p.id].load), L:s.ex[p.id].loadL, R:s.ex[p.id].loadR, rpe:s.ex[p.id].rpe }));
     const c = el("div", "card", null, app);
     const top = el("div", "row", null, c); el("div", "ex-name", p.name, top);
-    el("span", "badge", pts.length ? `${pts[pts.length-1].v} ${p.unit}${pts.length > 1 ? ` · ${pts[pts.length-1].v - pts[0].v >= 0 ? "+" : ""}${Math.round((pts[pts.length-1].v - pts[0].v)*10)/10}` : ""}` : "–", top);
+    const lastP = pts[pts.length - 1];
+    el("span", "badge", pts.length ? `${p.unit === "kg" ? `e1RM ${lastP.v} kg` : `${lastP.v} s`}${pts.length > 1 ? ` · ${lastP.v - pts[0].v >= 0 ? "+" : ""}${Math.round((lastP.v - pts[0].v)*10)/10}` : ""}` : "–", top);
+    if (lastP && p.unit === "kg") el("div", "cue", `Last: ${lastP.load} kg × ${p.reps}${p.id === "tbdl" ? ` · e1RM ${Math.round(lastP.v / KG * 100) / 100} × body weight` : ""}`, c);
+    if (lastP && p.sides && lastP.L != null && lastP.R != null) { const gap = Math.round(100 * Math.abs(lastP.L - lastP.R) / Math.max(lastP.L, lastP.R, 1)); el("div", "cue", `Left ${lastP.L} s · right ${lastP.R} s${gap ? ` · ${gap}% apart${gap > 15 ? ": show the physio" : ""}` : ""}`, c); }
     if (pts.length > 1) {
       const lo = Math.min(...pts.map((x) => x.v)), hi = Math.max(...pts.map((x) => x.v)), W = 300, H = 40;
       const sx = (i) => 4 + (i / (pts.length - 1)) * (W - 8), sy = (v) => hi === lo ? H/2 : H - 4 - ((v - lo) / (hi - lo)) * (H - 8);
@@ -349,6 +384,16 @@ async function food(app) {
   const types = el("div", "quick", null, panel);
   Object.entries(DAYTYPES).forEach(([k, v]) => { const c = el("button", "chip" + (type === k ? " on" : ""), v.label.replace(" day", ""), types); c.onclick = () => { foodLog[ds] = { type:k }; LS.set("food", foodLog); render(); }; });
 
+  // When to eat it: carbs and protein around the session (mid-range of today's targets). Mirrors mealSplit in the vault.
+  const mid = (r) => (r[0] + r[1]) / 2, C = mid(tg.c), P = mid(tg.p);
+  const plan = {
+    volleyball:[["07:30 Breakfast",25,25,"Oats"],["12:30 Lunch",30,25,""],["18:30 Snack",20,10,"Bread, banana, rice cakes"],["22:15 After volleyball",25,25,"Rice or pasta + protein, then sleep"],["Before bed",0,15,"Quark"]],
+    rest:[["Breakfast",25,22,"Oats"],["Lunch",30,25,""],["Snack",15,10,""],["Dinner",30,25,""],["Before bed",0,18,"Quark"]],
+    long:[["Dinner the night before",0,0,"Carb-rich, low fibre"],["2-3 h before",15,5,"Toast, honey, banana"],["During, over 75 min",0,0,"30-60 g carbs per hour: gels, drink. Log it below the run"],["Within 1 h after",25,25,"About 80 g carbs + 30 g protein"],["Lunch / dinner",45,50,""],["Before bed",0,10,"Quark"]],
+  }[type] || [["Breakfast",20,20,"Oats"],["Lunch",25,20,""],["1-2 h before training",15,5,"Bread, banana, rice"],["Within 1 h after",20,25,"Carbs + 30-40 g protein"],["Dinner",20,20,""],["Before bed",0,10,"Quark"]];
+  const tm = el("div", "card list", null, app); el("div", "tag", "When to eat it", tm);
+  plan.forEach(([n, c, p, hint]) => { const it = el("div", "it", null, tm); el("b", null, `${n}${c || p ? ` · ${c ? Math.round(C * c / 100) + " g carbs" : ""}${c && p ? ", " : ""}${p ? Math.round(P * p / 100) + " g protein" : ""}` : ""}`, it); if (hint) el("div", null, hint, it); });
+
   weightCard(app, ds);
 
   const mc = el("div", "card list", null, app); el("div", "tag", "Micros to keep in mind", mc);
@@ -385,8 +430,8 @@ const HABITS = ["8 h in bed", "Protein 4+ doses", "10 min mobility", "No caffein
 // the watch data above Zone 1. Without a watch recording it also sets the template load. Templates: coach_rules.json.
 const VB = {
   easy:{ label:"Easy", sub:"like Mon 9 Nov", rpe:4, load:89 },
-  normal:{ label:"Normal", sub:"usual training", rpe:6, load:115 },
-  hard:{ label:"Hard", sub:"match pace, many jumps", rpe:8, load:145 },
+  normal:{ label:"Normal", sub:"usual training", rpe:6, load:133 },     // RPE x 120 min x 0.185 (coach_rules.json srpe_factor)
+  hard:{ label:"Hard", sub:"match pace, many jumps", rpe:8, load:178 },
 };
 let vbRated = LS.get("vbRated", {});       // { "2026-11-09": { cat:"easy", sent:true } }
 function vbDay() {
@@ -432,45 +477,180 @@ function vbCard(app) {
   el("div", "cue", "Only time above Zone 1 counts as work, so pauses don't inflate calories. Without the watch, the category sets the load.", c);
 }
 
-async function recovery(app) {
-  if (!recovery.sent) { recovery.sent = true; sendVb().then((n) => { if (n && tab === "recovery") render(); }); }
-  const my = recovery.tok = (recovery.tok || 0) + 1;
+// ---------- readiness: the same rules as the vault (coach_rules.json -> readiness, analyze.ps1). Change both. ----------
+// HRV on the 7-day mean of ln(HRV) against the 60-day normal range (mean +- 0.5 SD); resting HR, sleep, form, last feel.
+const RR = { w:{ hrv:30, rhr:15, sleep:25, load:20, feel:10 }, swc:0.5, hrvPts:40, rhrPts:40, sleepFull:7.5, sleepZero:4.5, tsbFull:-10, tsbZero:-35,
+  feel:{ 1:100, 2:100, 3:85, 4:55, 5:25 }, kneeCap:3, kneeScore:30,
+  bands:[[75, "good", "Go", "Train as planned."], [55, "warn", "Careful", "Do the session at the slow end of the pace band. If HR runs above the band in the first rep, make it easy."], [0, "bad", "Back off", "Easy 30-40 min or rest. Move quality to another day."]] };
+const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+const sdev = (a) => { const m = avg(a); return Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / (a.length - 1)); };
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const addD = (ds, n) => { const d = new Date(ds + "T12:00"); d.setDate(d.getDate() + n); return isoDay(d); };
+const bandOf = (score) => RR.bands.find((b) => score >= b[0]);
+function readinessFor(ds, well, acts) {
+  const by = Object.fromEntries(well.map((w) => [w.id, w])), x = by[ds] || {}, parts = {}, why = [];
+  const l7 = [...Array(7)].map((_, i) => by[addD(ds, -i)]).filter((w) => w && w.hrv).map((w) => Math.log(w.hrv));
+  const bl = well.filter((w) => w.hrv && w.id < addD(ds, -6) && w.id >= addD(ds, -66)).map((w) => Math.log(w.hrv));
+  if (l7.length >= 4 && bl.length >= 14) {
+    const m = avg(bl), s = sdev(bl), z = (avg(l7) - m) / s;
+    parts.hrv = { score:clamp(100 + Math.min(0, z + RR.swc) * RR.hrvPts, 0, 100), avg7:Math.round(Math.exp(avg(l7))), lo:Math.round(Math.exp(m - RR.swc * s)), hi:Math.round(Math.exp(m + RR.swc * s)) };
+    if (z < -RR.swc) why.push(`7-day HRV ${parts.hrv.avg7} is under your range (${parts.hrv.lo}-${parts.hrv.hi})`);
+    if (x.hrv && (Math.log(x.hrv) - m) / s < -1.5) why.push("last night's HRV is very low for you");
+  }
+  const rb = well.filter((w) => w.restingHR && w.id < ds && w.id >= addD(ds, -60)).map((w) => w.restingHR);
+  if (x.restingHR && rb.length >= 14) { const z = (x.restingHR - avg(rb)) / sdev(rb); parts.rhr = { score:clamp(100 - Math.max(0, z) * RR.rhrPts, 0, 100), value:x.restingHR, usual:Math.round(avg(rb)) }; if (z > 1) why.push(`resting HR ${x.restingHR} is high for you`); }
+  if (x.sleepSecs) { const h = x.sleepSecs / 3600; let sc = clamp(100 * (h - RR.sleepZero) / (RR.sleepFull - RR.sleepZero), 0, 100); if (x.sleepScore) sc = (sc + x.sleepScore) / 2; parts.sleep = { score:sc, h, ss:x.sleepScore }; if (h < 6.5) why.push(`short sleep (${h.toFixed(1)} h)`); }
+  const lw = [...well].reverse().find((w) => w.id <= ds && w.ctl != null);
+  if (lw) { const tsb = lw.ctl - lw.atl; parts.load = { score:clamp(100 * (tsb - RR.tsbZero) / (RR.tsbFull - RR.tsbZero), 0, 100), tsb:Math.round(tsb) }; if (tsb < -20) why.push(`fatigue is high (form ${Math.round(tsb)})`); }
+  const prev = acts.filter((a) => { const d = a.start_date_local.slice(0, 10); return d < ds && d >= addD(ds, -2) && a.feel; }).pop();
+  if (prev) { parts.feel = { score:RR.feel[prev.feel] ?? 85 }; if (prev.feel >= 4) why.push("your last session felt poor"); }
+  let ws = 0, t = 0; Object.entries(parts).forEach(([k, p]) => { ws += RR.w[k]; t += RR.w[k] * Math.round(p.score); });
+  if (ws < 30) return null;
+  let score = Math.round(t / ws);
+  const knee = acts.filter((a) => a.start_date_local.slice(0, 10) >= addD(ds, -1)).map((a) => ((a.description || "").match(/knee:(\d+)/) || [])[1]).filter(Boolean).map(Number);
+  if (knee.length && Math.max(...knee) >= RR.kneeCap) { score = Math.min(score, RR.kneeScore); why.push(`knee pain ${Math.max(...knee)}/10`); }
+  return { score, why, parts };
+}
+
+let homeData = { day:null, at:0 };
+async function loadHome(ds) {
+  if (homeData.day === ds && Date.now() - homeData.at < 5 * 60e3) return homeData;
+  const h = { headers:{ Authorization:auth() } }, base = `https://intervals.icu/api/v1/athlete/${settings.athlete}`;
+  const [well, acts, ev] = await Promise.all([
+    fetch(`${base}/wellness?oldest=${addD(ds, -70)}&newest=${ds}`, h).then((r) => r.json()),
+    fetch(`${base}/activities?oldest=${addD(ds, -3)}&newest=${ds}`, h).then((r) => r.json()),
+    fetch(`${base}/events?oldest=${ds}&newest=${ds}`, h).then((r) => r.json()),
+  ]);
+  homeData = { day:ds, at:Date.now(), well:well.sort((a, b) => a.id < b.id ? -1 : 1), acts:acts.sort((a, b) => a.start_date_local < b.start_date_local ? -1 : 1), ev };
+  return homeData;
+}
+async function putActivity(a, body) {
+  const r = await fetch(`https://intervals.icu/api/v1/activity/${a.id}`, { method:"PUT", headers:{ Authorization:auth(), "Content-Type":"application/json" }, body:JSON.stringify(body) });
+  if (!r.ok) throw new Error(r.status);
+  Object.assign(a, body);
+}
+const tagged = (desc, key, val) => `${(desc || "").replace(new RegExp(`\\n?${key}:(\\{[^}]*\\}|[\\d.,]+)`, "g"), "").trim()}${val === null ? "" : `\n${key}:${val}`}`.trim();
+
+// Optional knee score: only when something hurt (athlete 2026-11-05: no daily knee input). Written as knee:N on the activity.
+function kneeCard(app, H) {
+  const a = H.acts.filter((x) => (/Run/.test(x.type) || /volley/i.test(x.name || "")) && x.start_date_local.slice(0, 10) >= addD(isoDay(), -1)).pop();
+  if (!a) return;
+  const m = (a.description || "").match(/knee:(\d+)/);
+  const d = el("details", "card", null, app); if (m) d.open = true;
+  el("summary", "tag", m ? `Knee after ${a.name}: ${m[1]}/10` : `Knee hurt after ${a.name}? Only if yes`, d);
+  const g = el("div", "quick", null, d);
+  [0,1,2,3,4,5,6,7,8].forEach((n) => { const c = el("button", "chip" + (m && Number(m[1]) === n ? " on" : ""), n ? String(n) : "No pain", g); c.onclick = async () => { try { await putActivity(a, { description:tagged(a.description, "knee", n || null) }); toast(n ? `Knee ${n}/10 saved` : "Cleared"); } catch(e) { toast("Not saved. Online?"); } render(); }; });
+  el("div", "cue", "3/10 or more makes the vault hold load and caps readiness. Pain that comes back: see the physio.", d);
+}
+
+// Long run fuelling and sweat: fuel:{carbs,before,after,fluid,gut} on the run. The vault turns it into g/h and L/h.
+function fuelCard(app, H) {
+  const a = H.acts.filter((x) => /Run/.test(x.type) && x.moving_time >= 3600 && x.start_date_local.slice(0, 10) >= addD(isoDay(), -2)).pop();
+  if (!a) return;
+  const m = (a.description || "").match(/fuel:(\{[^}]*\})/); let f = {}; try { if (m) f = JSON.parse(m[1]); } catch(e) {}
+  const c = el("div", "card", null, app);
+  const top = el("div", "row", null, c); el("div", "tag", `Fuel log · ${a.name}`, top);
+  el("span", "badge" + (m ? " up" : ""), m ? `${f.carbs ? Math.round(f.carbs / (a.moving_time / 3600)) : "–"} g/h` : "Not logged", top);
+  const fields = [["carbs", "Carbs taken, g (gel ≈ 25)"], ["before", "Weight before, kg"], ["after", "Weight after, kg"], ["fluid", "Drunk during, L"]];
+  const inputs = {};
+  fields.forEach(([k, lab]) => { const r = el("div", "wrow", null, c); el("span", "muted", lab, r).style.flex = "1.4"; const i = el("input", null, null, r); i.inputMode = "decimal"; i.value = f[k] ?? ""; inputs[k] = i; });
+  let gut = f.gut || null; const gg = el("div", "quick", null, c);
+  [[1, "Gut fine"], [2, "Some trouble"], [3, "Bad"]].forEach(([v, l]) => { const b = el("button", "chip" + (gut === v ? " on" : ""), l, gg); b.onclick = () => { gut = v; gg.querySelectorAll("button").forEach((x) => x.classList.remove("on")); b.classList.add("on"); }; });
+  const sb = el("button", "chip", "Save to the run", c); sb.style.marginTop = "10px";
+  sb.onclick = async () => {
+    const o = {}; Object.entries(inputs).forEach(([k, i]) => { const v = Number(i.value.replace(",", ".")); if (i.value !== "" && !isNaN(v)) o[k] = v; }); if (gut) o.gut = gut;
+    try { await putActivity(a, { description:tagged(a.description, "fuel", JSON.stringify(o)) }); toast("Saved to Intervals.icu"); } catch(e) { toast("Not saved. Online?"); }
+    render();
+  };
+  el("div", "cue", "Hannover: practise 30-60 g carbs per hour from January. Weigh naked, towel-dry. Over 2% body mass lost: drink more.", c);
+}
+
+// Weekly jump test: best of 3 countermovement jumps (My Jump app), Monday before volleyball. Saved as cmj:NN in wellness comments.
+let jumps = LS.get("jumps", []);
+function jumpCard(app, H, ds) {
+  const last = jumps[jumps.length - 1];
+  const due = new Date().getDay() === 1 || !last || (new Date(ds) - new Date(last.d)) / 864e5 >= 7;
+  if (!due && last.d !== ds) return;
+  const c = el("div", "card", null, app);
+  const top = el("div", "row", null, c); el("div", "tag", "Jump test · best of 3", top);
+  const prev = jumps.filter((j) => j.d !== ds).slice(-6).map((j) => j.cm);
+  const today = jumps.find((j) => j.d === ds);
+  if (today && prev.length >= 3) { const ch = Math.round(1000 * (today.cm - avg(prev)) / avg(prev)) / 10; el("span", "pill " + (ch < -5 ? "bad" : ch < -3 ? "warn" : "good"), `${today.cm} cm · ${ch >= 0 ? "+" : ""}${ch}% vs recent`, top); }
+  else el("span", "badge", today ? `${today.cm} cm` : last ? `last ${last.cm} cm` : "First test", top);
+  const r = el("div", "wrow", null, c); const i = el("input", null, null, r); i.inputMode = "decimal"; i.placeholder = "cm, from My Jump";
+  const b = el("button", "chip", "Save", r);
+  b.onclick = async () => {
+    const cm = Number(i.value.replace(",", ".")); if (!(cm > 10 && cm < 100)) { toast("Enter the jump height in cm"); return; }
+    jumps = jumps.filter((j) => j.d !== ds); jumps.push({ d:ds, cm }); LS.set("jumps", jumps);
+    try {
+      const w = H.well.find((x) => x.id === ds) || {};
+      const comments = `${(w.comments || "").replace(/cmj:\s*[\d.,]+/g, "").trim()} cmj:${cm}`.trim();
+      const p = await fetch(`https://intervals.icu/api/v1/athlete/${settings.athlete}/wellness/${ds}`, { method:"PUT", headers:{ Authorization:auth(), "Content-Type":"application/json" }, body:JSON.stringify({ id:ds, comments }) });
+      if (!p.ok) throw new Error(p.status); w.comments = comments; toast("Saved to Intervals.icu");
+    } catch(e) { toast("Saved on the phone. Upload failed."); }
+    render();
+  };
+  el("div", "cue", "Monday before volleyball, same warm-up, hands on hips. More than 5% under your recent average: legs aren't fresh, keep today's run easy.", c);
+}
+
+// Personal insights from your own data instead of generic tips.
+function insights(H) {
+  const out = [], w = H.well.filter((x) => x.id >= addD(isoDay(), -28) && x.sleepSecs);
+  const after = w.filter((x) => [2, 5].includes(new Date(x.id + "T12:00").getDay())), other = w.filter((x) => ![2, 5].includes(new Date(x.id + "T12:00").getDay()));
+  if (after.length >= 2 && other.length >= 4) {
+    const a = avg(after.map((x) => x.sleepSecs / 3600)), o = avg(other.map((x) => x.sleepSecs / 3600));
+    out.push(`After volleyball you sleep ${a.toFixed(1)} h against ${o.toFixed(1)} h on other nights (last 4 weeks).${o - a >= 0.5 ? " Eat right after, warm shower, lights out by 23:30." : " Volleyball isn't costing you sleep."}`);
+  }
+  const wt = H.well.filter((x) => x.weight); if (wt.length >= 2) { const d = wt[wt.length - 1].weight - wt[0].weight; if (Math.abs(d) >= 0.5) out.push(`Weight ${d > 0 ? "up" : "down"} ${Math.abs(d).toFixed(1)} kg in 10 weeks.${d < -1 ? " Eat more carbs before adding training." : ""}`); }
+  return out;
+}
+
+async function home(app) {
+  if (!home.sent) { home.sent = true; sendVb().then((n) => { if (n && tab === "home") render(); }); }
+  const my = home.tok = (home.tok || 0) + 1;
   const ds = isoDay(); const type = await dayType(ds);
-  if (tab !== "recovery" || my !== recovery.tok) return;
-  $("#title").textContent = "Recover"; $("#sub").textContent = `${DAYTYPES[type].label} · last night from Intervals.icu`;
+  let H = null; if (settings.key && navigator.onLine) { try { H = await loadHome(ds); } catch(e) { H = null; } }
+  if (tab !== "home" || my !== home.tok) return;
+  $("#title").textContent = "Today"; $("#sub").textContent = `${new Date().toLocaleDateString(undefined, { weekday:"long", day:"numeric", month:"short" })} · ${DAYTYPES[type].label}`;
   app.innerHTML = "";
 
-  const night = el("div", "card", null, app); el("div", "tag", "Last night", night);
-  const body = el("div", null, null, night);
-  if (!settings.key || !navigator.onLine) el("div", "cue", settings.key ? "Offline. Tips below still apply." : "Add your API key in Settings to see sleep and HRV.", body);
+  // 1. Decision: one score, the same as the vault's (written to Intervals.icu by the vault sync when it ran today).
+  const dc = el("div", "card", null, app); el("div", "tag", "Ready to train?", dc);
+  if (!H) el("div", "cue", settings.key ? "Offline. The plan and tips below still apply." : "Add your API key in Settings to see readiness.", dc);
   else {
-    try {
-      const old = new Date(); old.setDate(old.getDate() - 28);
-      const r = await fetch(`https://intervals.icu/api/v1/athlete/${settings.athlete}/wellness?oldest=${isoDay(old)}&newest=${ds}`, { headers:{ Authorization:auth() } });
-      const w = (await r.json()).sort((a, b) => a.id < b.id ? -1 : 1);
-      if (my !== recovery.tok) return;
-      const today = w.find((x) => x.id === ds && (x.hrv || x.sleepSecs || x.restingHR)) || w.filter((x) => x.hrv || x.sleepSecs).pop() || {};
-      const base = w.filter((x) => x.id !== today.id);
-      const stat = (k) => { const v = base.map((x) => x[k]).filter((x) => x); if (v.length < 5) return null; const m = v.reduce((a,b)=>a+b,0)/v.length; return { m, sd:Math.sqrt(v.reduce((a,b)=>a+(b-m)**2,0)/v.length) }; };
-      const hs = stat("hrv"), rs = stat("restingHR");
-      const sleepH = today.sleepSecs ? today.sleepSecs / 3600 : null;
-      let flags = 0, notes = [];
-      if (hs && today.hrv && today.hrv < hs.m - hs.sd) { flags++; notes.push("HRV below your usual range"); }
-      if (rs && today.restingHR && today.restingHR > rs.m + Math.max(3, rs.sd)) { flags++; notes.push("resting HR up"); }
-      if (sleepH !== null && sleepH < 6.5) { flags++; notes.push("short sleep"); }
-      const g = el("div", "macros", null, body); g.style.marginTop = "8px";
-      [["Sleep", sleepH !== null ? `${sleepH.toFixed(1)} h` : "–", today.sleepScore ? `score ${today.sleepScore}` : ""],
-       ["HRV", today.hrv ? Math.round(today.hrv) : "–", hs ? `usual ${Math.round(hs.m)}` : ""],
-       ["Rest HR", today.restingHR || "–", rs ? `usual ${Math.round(rs.m)}` : ""],
-       ["Form", today.ctl != null && today.atl != null ? Math.round(today.ctl - today.atl) : "–", "CTL − ATL"]].forEach(([n, v, s]) => { const m = el("div", "mac", null, g); el("div", "t", n, m); el("div", "v", String(v), m); el("div", "t", s, m); });
-      const p = el("div", null, null, body); p.style.marginTop = "10px";
-      const [cls, txt] = flags === 0 ? ["good", "Recovered: train as planned"] : flags === 1 ? ["warn", `Careful: ${notes[0]}. Keep today easy-ish`] : ["bad", `Back off: ${notes.join(", ")}. Easy or rest`];
-      el("span", "pill " + cls, txt, p);
-      if (today.id && today.id !== ds) el("div", "cue", `Latest data from ${today.id}. Sync the watch for today.`, body);
-    } catch(e) { el("div", "cue", "Couldn't load wellness data.", body); }
+    const r = readinessFor(ds, H.well, H.acts), vault = (H.well.find((x) => x.id === ds) || {}).readiness;
+    const score = vault ?? (r && r.score);
+    if (score == null) el("div", "cue", "Not enough data for today yet. Sync the watch.", dc);
+    else {
+      const b = bandOf(score);
+      const row = el("div", "row", null, dc); row.style.justifyContent = "flex-start"; row.style.marginTop = "6px";
+      el("div", "v", String(score), row).style.cssText = "font-size:34px;font-weight:750;font-variant-numeric:tabular-nums";
+      el("span", "pill " + b[1], b[2], row);
+      el("div", null, b[3], dc).style.marginTop = "6px";
+      el("div", "cue", r && r.why.length ? `Why: ${r.why.join(", ")}.` : "Every signal is in your usual range.", dc);
+      if (r) {
+        const g = el("div", "macros", null, dc);
+        const p = r.parts;
+        [["Sleep", p.sleep ? `${p.sleep.h.toFixed(1)} h` : "–", p.sleep && p.sleep.ss ? `score ${p.sleep.ss}` : ""], ["HRV 7 d", p.hrv ? p.hrv.avg7 : "–", p.hrv ? `range ${p.hrv.lo}-${p.hrv.hi}` : ""],
+         ["Rest HR", p.rhr ? p.rhr.value : "–", p.rhr ? `usual ${p.rhr.usual}` : ""], ["Form", p.load ? p.load.tsb : "–", "CTL − ATL"]].forEach(([n, v, s]) => { const m = el("div", "mac", null, g); el("div", "t", n, m); el("div", "v", String(v), m); el("div", "t", s, m); });
+      }
+      el("div", "cue", vault != null ? "Score from the vault sync. Same rules on the phone and in Obsidian." : "Calculated on the phone with the vault's rules (the vault hasn't synced today).", dc);
+    }
   }
 
+  // 2. The plan, with one main action.
+  const pc = el("div", "card list", null, app); el("div", "tag", "Plan today", pc);
+  const wd = new Date().getDay(), items = [];
+  (H ? H.ev.filter((e) => e.category === "WORKOUT") : []).forEach((e) => items.push([e.name, ((e.description || "").split("\n\n")[0] || "").slice(0, 160)]));
+  if ([1, 4].includes(wd)) items.push(["Volleyball 20-22", "10 min hip activation first. Rate it here afterwards."]);
+  const gymV = wd === 2 ? "A" : wd === 6 ? "B" : null;
+  if (gymV) items.push([`Gym ${gymV}${gymV === "B" ? " (light)" : ""}`, gymV === "A" ? "Heavy: drives progression. After the run, 6 h apart if you can." : "One set fewer, 90% of A."]);
+  if (!items.length) items.push(H ? ["Rest", "Walk 20-30 min, 10 min mobility, bank sleep."] : ["Workouts not loaded", "They come from the Intervals.icu calendar: go online or check the watch."]);
+  items.forEach(([n, d]) => { const it = el("div", "it", null, pc); el("b", null, n, it); if (d) el("div", null, d, it); });
+  if (gymV) { const b = el("button", "btn", `Start Gym ${gymV}`, pc); b.style.cssText = "width:100%;margin-top:10px"; b.onclick = () => { if (!cur || !PROGRAM.some((p) => cur.ex[p.id].done > 0)) { cur = newSession(gymV); save(); } tab = "today"; render(); }; }
+
   vbCard(app);
+  if (H) { kneeCard(app, H); fuelCard(app, H); jumpCard(app, H, ds); }
 
   const td = el("div", "card list", null, app); el("div", "tag", `Today · ${DAYTYPES[type].label}`, td);
   REC_DAY[type].forEach((x) => el("div", "it", x, td));
@@ -485,16 +665,17 @@ async function recovery(app) {
   while ((recChecks[isoDay(d)] || []).length >= 4) { n++; d.setDate(d.getDate() - 1); }
   el("div", "cue", n ? `${n} day${n > 1 ? "s" : ""} in a row with 4+ habits` : "4 of 5 habits a day starts a streak.", hb);
 
-  const tip = el("div", "card", null, app); el("div", "tag", "Tip of the day", tip);
-  el("div", null, REC_TIPS[Math.floor(Date.now() / 864e5) % REC_TIPS.length], tip);
+  const own = H ? insights(H) : [];
+  const tip = el("div", "card list", null, app); el("div", "tag", own.length ? "From your data" : "Tip of the day", tip);
+  (own.length ? own : [REC_TIPS[Math.floor(Date.now() / 864e5) % REC_TIPS.length]]).forEach((x) => el("div", "it", x, tip));
 }
 
 // ---------- upload ----------
 const auth = () => "Basic " + btoa("API_KEY:" + settings.key);
 const ABBR = { tbdl:"Trap-bar DL", bss:"Bulgarian SS", hpc:"Hang power clean", splank:"Side plank", calf:"SL calf raise" };
 function describe(s) {
-  const lines = PROGRAM.filter((p) => s.ex[p.id].done > 0).map((p) => { const r = s.ex[p.id]; return p.unit === "s" ? `${ABBR[p.id]}: ${r.done}x${r.load}s/side${r.rpe ? ` RPE ${r.rpe}` : ""}` : `${ABBR[p.id]}: ${r.done}x${p.reps} @ ${r.load} kg${r.rpe ? ` RPE ${r.rpe}` : ""}`; });
-  const data = { v:1, session:s.v || "A", mob:s.mob.length, ex:Object.fromEntries(PROGRAM.map((p) => [p.id, { load:s.ex[p.id].load, sets:s.ex[p.id].done, of:setsOf(p, s), reps:p.reps, unit:p.unit, rpe:s.ex[p.id].rpe }])) };
+  const lines = PROGRAM.filter((p) => s.ex[p.id].done > 0).map((p) => { const r = s.ex[p.id]; return p.unit === "s" ? `${ABBR[p.id]}: ${r.done}x${p.sides && r.loadL != null ? `${r.loadL}s L / ${r.loadR}s R` : `${r.load}s/side`}${r.rpe ? ` RPE ${r.rpe}` : ""}` : `${ABBR[p.id]}: ${r.done}x${p.reps} @ ${r.load} kg${r.rpe ? ` RPE ${r.rpe}` : ""}`; });
+  const data = { v:1, session:s.v || "A", mob:s.mob.length, ex:Object.fromEntries(PROGRAM.map((p) => [p.id, { load:s.ex[p.id].load, sets:s.ex[p.id].done, of:setsOf(p, s), reps:p.reps, unit:p.unit, rpe:s.ex[p.id].rpe, ...(p.sides ? { loadL:s.ex[p.id].loadL ?? null, loadR:s.ex[p.id].loadR ?? null } : {}) }])) };
   return `${lines.join("\n")}\nMobility ${s.mob.length}/${MOBILITY.length}\n\ngym:${JSON.stringify(data)}`;
 }
 async function upload(s) {
