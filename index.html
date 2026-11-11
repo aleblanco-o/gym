@@ -11,7 +11,15 @@
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon.svg">
 <style>
-:root { --bg:#100F0F; --card:#1C1B1A; --line:#343331; --text:#CECDC3; --muted:#878580; --accent:#4385BE; --good:#879A39; --warn:#D0A215; --red:#D14D41; --orange:#DA702C; --r:16px; }
+/* Flexoki. Night (default): black, base-950/900/850, tx base-200/500, 400 accents. Day: paper, base-50/100/150, tx black/base-600, 600 accents. */
+:root { --bg:#100F0F; --card:#1C1B1A; --ui:#282726; --line:#343331; --text:#CECDC3; --muted:#878580; --on:#100F0F; --accent:#4385BE; --good:#879A39; --warn:#D0A215; --red:#D14D41; --orange:#DA702C;
+  --good-bg:rgba(135,154,57,.2); --warn-bg:rgba(208,162,21,.2); --red-bg:rgba(209,77,65,.2); --r:16px; color-scheme:dark; }
+html.day { --bg:#FFFCF0; --card:#F2F0E5; --ui:#E6E4D9; --line:#DAD8CE; --text:#100F0F; --muted:#6F6E69; --on:#FFFCF0; --accent:#205EA6; --good:#66800B; --warn:#AD8301; --red:#AF3029; --orange:#BC5215;
+  --good-bg:rgba(102,128,11,.15); --warn-bg:rgba(173,131,1,.15); --red-bg:rgba(175,48,41,.12); color-scheme:light; }
+.theme { width:38px; height:38px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--text); font-size:18px; }
+.vb { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; } .vb button { height:52px; border-radius:12px; border:1px solid var(--line); background:transparent; color:var(--text); font-size:15px; font-weight:650; }
+.vb button.on { background:var(--accent); border-color:var(--accent); color:var(--on); } .vb small { display:block; font-size:11px; font-weight:400; color:inherit; opacity:.75; }
+.wrow { display:flex; gap:8px; align-items:center; margin-top:10px; } .wrow input { flex:1; height:46px; border-radius:12px; border:1px solid var(--line); background:var(--ui); color:var(--text); padding:0 12px; font-size:17px; } .wrow .chip { height:46px; padding:0 16px; }
 * { box-sizing:border-box; min-width:0; -webkit-tap-highlight-color:transparent; }
 html,body { overflow-x:hidden; margin:0; background:var(--bg); color:var(--text); font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif; }
 body { padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 96px); max-width:560px; margin:auto; }
@@ -23,10 +31,10 @@ h1 { font-size:26px; margin:4px 0 2px; } .muted { color:var(--muted); font-size:
 .cue { font-size:13px; color:var(--muted); margin:4px 0 10px; }
 .sets { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 6px; }
 .set { width:52px; height:52px; border-radius:50%; border:2px solid var(--line); background:transparent; color:var(--text); font-size:15px; font-weight:600; }
-.set.on { background:var(--good); border-color:var(--good); color:#100F0F; }
+.set.on { background:var(--good); border-color:var(--good); color:var(--on); }
 .stepper { display:flex; align-items:center; gap:6px; }
-.stepper button { width:40px; height:40px; border-radius:12px; border:1px solid var(--line); background:#282726; color:var(--text); font-size:20px; }
-.stepper input { width:64px; height:40px; text-align:center; border-radius:12px; border:1px solid var(--line); background:#282726; color:var(--text); font-size:17px; font-weight:650; }
+.stepper button { width:40px; height:40px; border-radius:12px; border:1px solid var(--line); background:var(--ui); color:var(--text); font-size:20px; }
+.stepper input { width:64px; height:40px; text-align:center; border-radius:12px; border:1px solid var(--line); background:var(--ui); color:var(--text); font-size:17px; font-weight:650; }
 .rpe { display:flex; gap:6px; margin-top:10px; align-items:center; } .rpe span { font-size:13px; color:var(--muted); margin-right:2px; }
 .chip { min-width:40px; height:36px; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--text); font-size:15px; }
 .chip.on { background:var(--accent); border-color:var(--accent); color:#fff; }
@@ -35,7 +43,7 @@ h1 { font-size:26px; margin:4px 0 2px; } .muted { color:var(--muted); font-size:
 .list { font-size:14px; } .list .it { padding:8px 0; border-bottom:1px solid var(--line); } .list .it:last-child { border-bottom:0; }
 .list .it b { font-weight:650; } .list .it div { color:var(--muted); font-size:13px; margin-top:2px; }
 .pill { display:inline-block; padding:4px 10px; border-radius:10px; font-size:13px; font-weight:650; }
-.pill.good { background:rgba(135,154,57,.2); color:var(--good); } .pill.warn { background:rgba(208,162,21,.2); color:var(--warn); } .pill.bad { background:rgba(209,77,65,.2); color:var(--red); }
+.pill.good { background:var(--good-bg); color:var(--good); } .pill.warn { background:var(--warn-bg); color:var(--warn); } .pill.bad { background:var(--red-bg); color:var(--red); }
 .mob label { display:flex; gap:10px; align-items:center; padding:8px 0; font-size:15px; }
 .mob input { width:22px; height:22px; accent-color:var(--good); }
 .bar { position:fixed; left:0; right:0; bottom:0; padding:12px 14px calc(env(safe-area-inset-bottom) + 12px); background:linear-gradient(transparent, var(--bg) 30%); }
@@ -44,12 +52,12 @@ h1 { font-size:26px; margin:4px 0 2px; } .muted { color:var(--muted); font-size:
 .btn.ghost { flex:0 0 54px; background:var(--card); border:1px solid var(--line); color:var(--text); font-size:22px; }
 .btn:disabled { opacity:.4; }
 .timer { position:fixed; top:calc(env(safe-area-inset-top) + 10px); left:50%; transform:translateX(-50%); background:var(--accent); color:#fff; padding:8px 16px; border-radius:20px; font-weight:700; font-variant-numeric:tabular-nums; display:none; z-index:5; }
-.timer.show { display:block; } .timer.over { background:var(--good); color:#100F0F; }
-.field { display:block; margin:10px 0; } .field input { width:100%; height:46px; border-radius:12px; border:1px solid var(--line); background:#282726; color:var(--text); padding:0 12px; font-size:16px; }
+.timer.show { display:block; } .timer.over { background:var(--good); color:var(--on); }
+.field { display:block; margin:10px 0; } .field input { width:100%; height:46px; border-radius:12px; border:1px solid var(--line); background:var(--ui); color:var(--text); padding:0 12px; font-size:16px; }
 .hist { font-size:14px; } .hist .row { padding:6px 0; border-bottom:1px solid var(--line); }
-.badge { flex:none; white-space:nowrap; font-size:12px; padding:2px 8px; border-radius:10px; background:#282726; color:var(--muted); }
-.badge.up { background:rgba(135,154,57,.2); color:var(--good); }
-.toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:#282726; border:1px solid var(--line); padding:10px 16px; border-radius:12px; font-size:14px; display:none; max-width:90%; text-align:center; }
+.badge { flex:none; white-space:nowrap; font-size:12px; padding:2px 8px; border-radius:10px; background:var(--ui); color:var(--muted); }
+.badge.up { background:var(--good-bg); color:var(--good); }
+.toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:var(--ui); border:1px solid var(--line); padding:10px 16px; border-radius:12px; font-size:14px; display:none; max-width:90%; text-align:center; }
 .toast.show { display:block; }
 nav { display:flex; gap:8px; margin:8px 0 4px; } nav button { flex:1; height:38px; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--muted); font-size:14px; }
 nav button.on { background:var(--card); color:var(--text); }
@@ -60,7 +68,7 @@ svg.spark { width:100%; height:40px; }
 <div id="timer" class="timer"></div>
 <div id="toast" class="toast"></div>
 <header>
-  <div class="row"><h1 id="title">Gym</h1><span id="sync" class="badge"></span></div>
+  <div class="row"><h1 id="title">Gym</h1><div class="row"><span id="sync" class="badge"></span><button id="theme" class="theme" aria-label="Night mode"></button></div></div>
   <div id="sub" class="muted"></div>
   <nav><button data-tab="food">Fuel</button><button data-tab="recovery">Recover</button><button data-tab="today" class="on">Gym</button><button data-tab="history">Progress</button><button data-tab="settings">⚙</button></nav>
 </header>
@@ -194,7 +202,7 @@ function progress(app) {
     if (pts.length > 1) {
       const lo = Math.min(...pts.map((x) => x.v)), hi = Math.max(...pts.map((x) => x.v)), W = 300, H = 40;
       const sx = (i) => 4 + (i / (pts.length - 1)) * (W - 8), sy = (v) => hi === lo ? H/2 : H - 4 - ((v - lo) / (hi - lo)) * (H - 8);
-      c.insertAdjacentHTML("beforeend", `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${pts.map((x,i)=>`${i?"L":"M"}${sx(i)},${sy(x.v)}`).join(" ")}" fill="none" stroke="#DA702C" stroke-width="2.5" stroke-linejoin="round"/></svg>`);
+      c.insertAdjacentHTML("beforeend", `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${pts.map((x,i)=>`${i?"L":"M"}${sx(i)},${sy(x.v)}`).join(" ")}" fill="none" style="stroke:var(--orange)" stroke-width="2.5" stroke-linejoin="round"/></svg>`);
     }
   });
   const h = el("div", "card hist", null, app); el("div", "tag", "Sessions", h);
@@ -226,7 +234,8 @@ function settingsView(app) {
 
 // ---------- fuel: macro and micro targets for the day (no meal suggestions, athlete 2026-11-10) ----------
 // Mirrors 03 ToDo/Nutrition/nutrition_plan.json (change both). Grams are derived from g/kg guidelines.
-const KG = 78;
+let weights = LS.get("weights", []);       // [{ d:"2026-11-11", kg:78.2 }] from the app and Intervals.icu wellness
+let KG = weights.length ? weights[weights.length - 1].kg : 78;
 const DAYTYPES = {
   rest:{ label:"Rest day", c:[4,5], f:[1.0,1.2], note:"Carbs from whole foods. Protein stays high for repair. Saturated fat under about 30 g." },
   easy:{ label:"Easy day", c:[5,6], f:[1.0,1.1], note:"Normal meals. 20-40 g protein within 2 h after training. Oats at breakfast." },
@@ -270,7 +279,60 @@ function targets(type) {
   return { c, p, f, kcal:[c[0]*4+p[0]*4+f[0]*9, c[1]*4+p[1]*4+f[1]*9].map((x) => Math.round(x/50)*50), sat:Math.round((c[0]*4+p[0]*4+f[0]*9) * 0.1 / 9) };
 }
 
+// ---------- weekly weight: saved to Intervals.icu wellness (weight), read back by the vault's weekly review ----------
+async function loadWeights() {
+  if (!settings.key || !navigator.onLine) return;
+  try {
+    const old = new Date(); old.setDate(old.getDate() - 60);
+    const r = await fetch(`https://intervals.icu/api/v1/athlete/${settings.athlete}/wellness?oldest=${isoDay(old)}&newest=${isoDay()}`, { headers:{ Authorization:auth() } });
+    const w = (await r.json()).filter((x) => x.weight).map((x) => ({ d:x.id, kg:Math.round(x.weight * 10) / 10 }));
+    const local = weights.filter((x) => x.pending);
+    weights = [...w.filter((x) => !local.some((l) => l.d === x.d)), ...local].sort((a, b) => a.d < b.d ? -1 : 1);
+    LS.set("weights", weights); if (weights.length) KG = weights[weights.length - 1].kg;
+  } catch(e) {}
+}
+async function pushWeights() {
+  if (!settings.key || !navigator.onLine) return;
+  for (const x of weights.filter((w) => w.pending)) {
+    try {
+      const r = await fetch(`https://intervals.icu/api/v1/athlete/${settings.athlete}/wellness/${x.d}`, { method:"PUT", headers:{ Authorization:auth(), "Content-Type":"application/json" }, body:JSON.stringify({ id:x.d, weight:x.kg }) });
+      if (!r.ok) throw new Error(r.status); delete x.pending; LS.set("weights", weights);
+    } catch(e) { break; }
+  }
+}
+function weightCard(app, ds) {
+  const c = el("div", "card", null, app);
+  const top = el("div", "row", null, c); el("div", "tag", "Weekly weight", top);
+  const last = weights[weights.length - 1];
+  const days = last ? Math.round((new Date(ds + "T12:00") - new Date(last.d + "T12:00")) / 864e5) : null;
+  el("span", "badge" + (days === null || days >= 7 ? "" : " up"), days === null ? "No weigh-in yet" : days >= 7 ? "Weigh-in due" : `${last.kg} kg · ${days ? days + " d ago" : "today"}`, top);
+  const ago14 = new Date(ds + "T12:00"); ago14.setDate(ago14.getDate() - 14);
+  const ref = [...weights].reverse().find((w) => w.d <= isoDay(ago14)) || weights[0];
+  if (last && ref && ref !== last) {
+    const ch = Math.round((last.kg - ref.kg) * 10) / 10;
+    const p = el("div", null, null, c); p.style.marginTop = "10px";
+    el("span", "pill " + (ch < -1 ? "bad" : Math.abs(ch) > 0.6 ? "warn" : "good"), `${ch >= 0 ? "+" : ""}${ch} kg since ${ref.d.slice(5)}`, p);
+    if (ch < -1) el("div", "cue", "More than 1 kg down in 2 weeks: eat more carbs before adding training. Under-fuelling shows here first.", c);
+  }
+  if (weights.length > 1) {
+    const pts = weights.slice(-10), lo = Math.min(...pts.map((x) => x.kg)) - 0.3, hi = Math.max(...pts.map((x) => x.kg)) + 0.3, W = 300, H = 40;
+    const sx = (i) => 4 + (i / Math.max(1, pts.length - 1)) * (W - 8), sy = (v) => H - 4 - ((v - lo) / (hi - lo)) * (H - 8);
+    c.insertAdjacentHTML("beforeend", `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${pts.map((x,i)=>`${i?"L":"M"}${sx(i)},${sy(x.kg)}`).join(" ")}" fill="none" style="stroke:var(--orange)" stroke-width="2.5" stroke-linejoin="round"/></svg>`);
+  }
+  const row = el("div", "wrow", null, c);
+  const inp = el("input", null, null, row); inp.inputMode = "decimal"; inp.placeholder = "kg, morning, before breakfast";
+  const b = el("button", "chip", "Save", row);
+  b.onclick = async () => {
+    const kg = Number(inp.value.replace(",", "."));
+    if (!(kg > 40 && kg < 150)) { toast("Enter your weight in kg"); return; }
+    weights = weights.filter((w) => w.d !== ds); weights.push({ d:ds, kg:Math.round(kg * 10) / 10, pending:true }); LS.set("weights", weights); KG = Math.round(kg * 10) / 10;
+    await pushWeights(); toast(weights.some((w) => w.pending) ? "Saved. Uploads when online." : "Saved to Intervals.icu"); render();
+  };
+  el("div", "cue", "Once a week, same morning, after the toilet, before breakfast. Targets follow your latest weight.", c);
+}
+
 async function food(app) {
+  if (!food.loaded) { food.loaded = true; await pushWeights(); await loadWeights(); }
   const ds = isoDay(); const type = await dayType(ds); const tg = targets(type), t = DAYTYPES[type];
   if (tab !== "food") return;
   $("#title").textContent = "Fuel";
@@ -286,6 +348,8 @@ async function food(app) {
   el("div", "cue", t.note, panel);
   const types = el("div", "quick", null, panel);
   Object.entries(DAYTYPES).forEach(([k, v]) => { const c = el("button", "chip" + (type === k ? " on" : ""), v.label.replace(" day", ""), types); c.onclick = () => { foodLog[ds] = { type:k }; LS.set("food", foodLog); render(); }; });
+
+  weightCard(app, ds);
 
   const mc = el("div", "card list", null, app); el("div", "tag", "Micros to keep in mind", mc);
   MICROS.forEach(([n, d]) => { const it = el("div", "it", null, mc); el("b", null, n, it); el("div", null, d, it); });
@@ -316,9 +380,63 @@ const REC_TIPS = [
 let recChecks = LS.get("recChecks", {});
 const HABITS = ["8 h in bed", "Protein 4+ doses", "10 min mobility", "No caffeine after 14:00", "No screens 30 min before bed"];
 
+// ---------- volleyball category: easy / normal / hard ----------
+// Writes vb:<category> and RPE to the session in Intervals.icu. The vault (analyze.ps1) reads the tag and takes
+// the watch data above Zone 1. Without a watch recording it also sets the template load. Templates: coach_rules.json.
+const VB = {
+  easy:{ label:"Easy", sub:"like Mon 9 Nov", rpe:4, load:89 },
+  normal:{ label:"Normal", sub:"usual training", rpe:6, load:115 },
+  hard:{ label:"Hard", sub:"match pace, many jumps", rpe:8, load:145 },
+};
+let vbRated = LS.get("vbRated", {});       // { "2026-11-09": { cat:"easy", sent:true } }
+function vbDay() {
+  const now = new Date();
+  for (let i = 0; i <= 2; i++) {
+    const d = new Date(now); d.setDate(d.getDate() - i);
+    if ([1,4].includes(d.getDay())) { if (i === 0 && now.getHours() < 21) continue; return isoDay(d); }
+  }
+  return null;
+}
+async function sendVb() {
+  let n = 0;
+  if (!settings.key || !navigator.onLine) return n;
+  for (const [ds, r0] of Object.entries(vbRated)) {
+    if (r0.sent) continue;
+    try {
+      const r = await fetch(`https://intervals.icu/api/v1/athlete/${settings.athlete}/activities?oldest=${ds}&newest=${ds}`, { headers:{ Authorization:auth() } });
+      const a = (await r.json()).find((x) => /volley/i.test(x.name || "") || /volley/i.test(x.type || ""));
+      if (!a) continue;                       // not synced yet: stays pending
+      const v = VB[r0.cat];
+      const desc = `${(a.description || "").replace(/\n?vb:(easy|normal|hard)\b/g, "").trim()}\nvb:${r0.cat}`.trim();
+      const body = { icu_rpe:v.rpe, description:desc };
+      if (!a.average_heartrate) body.icu_training_load = v.load;
+      const p = await fetch(`https://intervals.icu/api/v1/activity/${a.id}`, { method:"PUT", headers:{ Authorization:auth(), "Content-Type":"application/json" }, body:JSON.stringify(body) });
+      if (!p.ok) throw new Error(p.status);
+      r0.sent = true; LS.set("vbRated", vbRated); n++;
+    } catch(e) { break; }
+  }
+  return n;
+}
+function vbCard(app) {
+  const ds = vbDay(); if (!ds) return;
+  const c = el("div", "card", null, app);
+  const top = el("div", "row", null, c);
+  el("div", "tag", `Volleyball · ${new Date(ds + "T12:00").toLocaleDateString(undefined, { weekday:"short", day:"numeric", month:"short" })}`, top);
+  const cur = vbRated[ds];
+  el("span", "badge" + (cur && cur.sent ? " up" : ""), cur ? (cur.sent ? "In Intervals" : "Waiting for the session") : "How was it?", top);
+  const g = el("div", "vb", null, c);
+  Object.entries(VB).forEach(([k, v]) => {
+    const b = el("button", cur && cur.cat === k ? "on" : "", v.label, g); el("small", null, v.sub, b);
+    b.onclick = async () => { vbRated[ds] = { cat:k, sent:false }; LS.set("vbRated", vbRated); render(); await sendVb(); toast(vbRated[ds].sent ? `${v.label} saved to Intervals.icu` : "Saved. Sent when the session is in Intervals.icu."); render(); };
+  });
+  el("div", "cue", "Only time above Zone 1 counts as work, so pauses don't inflate calories. Without the watch, the category sets the load.", c);
+}
+
 async function recovery(app) {
+  if (!recovery.sent) { recovery.sent = true; sendVb().then((n) => { if (n && tab === "recovery") render(); }); }
+  const my = recovery.tok = (recovery.tok || 0) + 1;
   const ds = isoDay(); const type = await dayType(ds);
-  if (tab !== "recovery") return;
+  if (tab !== "recovery" || my !== recovery.tok) return;
   $("#title").textContent = "Recover"; $("#sub").textContent = `${DAYTYPES[type].label} · last night from Intervals.icu`;
   app.innerHTML = "";
 
@@ -330,6 +448,7 @@ async function recovery(app) {
       const old = new Date(); old.setDate(old.getDate() - 28);
       const r = await fetch(`https://intervals.icu/api/v1/athlete/${settings.athlete}/wellness?oldest=${isoDay(old)}&newest=${ds}`, { headers:{ Authorization:auth() } });
       const w = (await r.json()).sort((a, b) => a.id < b.id ? -1 : 1);
+      if (my !== recovery.tok) return;
       const today = w.find((x) => x.id === ds && (x.hrv || x.sleepSecs || x.restingHR)) || w.filter((x) => x.hrv || x.sleepSecs).pop() || {};
       const base = w.filter((x) => x.id !== today.id);
       const stat = (k) => { const v = base.map((x) => x[k]).filter((x) => x); if (v.length < 5) return null; const m = v.reduce((a,b)=>a+b,0)/v.length; return { m, sd:Math.sqrt(v.reduce((a,b)=>a+(b-m)**2,0)/v.length) }; };
@@ -350,6 +469,8 @@ async function recovery(app) {
       if (today.id && today.id !== ds) el("div", "cue", `Latest data from ${today.id}. Sync the watch for today.`, body);
     } catch(e) { el("div", "cue", "Couldn't load wellness data.", body); }
   }
+
+  vbCard(app);
 
   const td = el("div", "card list", null, app); el("div", "tag", `Today · ${DAYTYPES[type].label}`, td);
   REC_DAY[type].forEach((x) => el("div", "it", x, td));
@@ -406,6 +527,15 @@ $("#finish").onclick = () => {
   flush(); render();
 };
 document.querySelectorAll("nav button").forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
+// Night mode (Flexoki dark) is the default; the button switches to day (Flexoki light). Saved on the phone.
+function applyTheme() {
+  const day = LS.get("theme", "night") === "day";
+  document.documentElement.classList.toggle("day", day);
+  document.querySelector('meta[name="theme-color"]').content = day ? "#FFFCF0" : "#100F0F";
+  const b = $("#theme"); b.textContent = day ? "🌙" : "☀"; b.setAttribute("aria-label", day ? "Night mode" : "Day mode");
+}
+$("#theme").onclick = () => { LS.set("theme", LS.get("theme", "night") === "day" ? "night" : "day"); applyTheme(); };
+applyTheme();
 window.addEventListener("online", () => { flush(); });
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 render(); flush();
