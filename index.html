@@ -605,6 +605,45 @@ function insights(H) {
   return out;
 }
 
+// Morning check: the three subjective fields Intervals.icu already has (soreness, fatigue, mood), 1-4, 1 = best.
+// Saw 2016 (BJSM): subjective wellness tracks training load better than objective markers. Mood: 1 great ... 4 grumpy.
+const CHECK = [
+  { k:"soreness", q:"Muscles", o:["None","Some","Sore","Very sore"] },
+  { k:"fatigue", q:"Fatigue", o:["Fresh","Normal","Tired","Wrecked"] },
+  { k:"mood", q:"Mood", o:["Great","Good","Okay","Grumpy"] },
+];
+function checkCard(app, H, ds) {
+  const w = H.well.find((x) => x.id === ds) || (H.well.push({ id:ds }), H.well[H.well.length - 1]);
+  const c = el("div", "card", null, app); const top = el("div", "row", null, c); el("div", "tag", "Morning check · 10 seconds", top);
+  const done = CHECK.every((f) => w[f.k]);
+  el("span", "badge", done ? "Done" : "Do it before you eat", top);
+  CHECK.forEach((f) => {
+    el("div", "cue", f.q, c);
+    const g = el("div", "quick", null, c);
+    f.o.forEach((label, i) => {
+      const b = el("button", "chip" + (w[f.k] === i + 1 ? " on" : ""), label, g);
+      b.onclick = async () => {
+        try {
+          const r = await fetch(`https://intervals.icu/api/v1/athlete/${settings.athlete}/wellness/${ds}`, { method:"PUT", headers:{ Authorization:auth(), "Content-Type":"application/json" }, body:JSON.stringify({ id:ds, [f.k]:i + 1 }) });
+          if (!r.ok) throw new Error(r.status); w[f.k] = i + 1; toast("Saved to Intervals.icu");
+        } catch(e) { toast("Not saved. Online?"); }
+        render();
+      };
+    });
+  });
+  el("div", "cue", "Two or more answers on the tired side (Sore, Tired, Wrecked, Grumpy) while the score says Go: trust your body, keep today easy.", c);
+}
+
+// Rules of the game: what to do and when, in the order it happens.
+function rulesCard(app) {
+  const d = el("details", "card", null, app); el("summary", "tag", "How it works · rules of the game", d);
+  const part = (t, items) => { el("div", "cue", t, d).style.cssText = "margin-top:10px;font-weight:650"; items.forEach((x) => el("div", "it", x, d)); };
+  part("Every morning, before breakfast", ["Wear the watch at night so HRV and sleep are there.", "Open Today. Answer the Morning check: muscles, fatigue, mood.", "Read the score and the plan. Go: train as planned. Careful: easy end of the pace band. Back off: easy 30-40 min or rest."]);
+  part("After training", ["Volleyball (Mon, Thu): rate it Easy, Normal or Hard. Without a watch it counts as Easy. Tell Claude if you did not go.", "Run: add the knee score only if something hurt. No tap means 0.", "Run of 60 min or more: fill the fuel log (carbs, weight before and after)."]);
+  part("Every week", ["Monday before volleyball: jump test, best of 3. Weigh in once in Fuel.", "Tuesday Gym A, Saturday Gym B: open Gym, finish, RPE on each lift. It uploads by itself.", "Sunday: tell Claude \"plan next week\", then sync the vault."]);
+  part("Rules that do not bend", ["Knee above 2/10: no extra load next week.", "Never run more than 110% of your longest run of the last 30 days."]);
+}
+
 async function home(app) {
   if (!home.sent) { home.sent = true; sendVb().then((n) => { if (n && tab === "home") render(); }); }
   const my = home.tok = (home.tok || 0) + 1;
@@ -614,6 +653,7 @@ async function home(app) {
   $("#title").textContent = "Today"; $("#sub").textContent = `${new Date().toLocaleDateString(undefined, { weekday:"long", day:"numeric", month:"short" })} · ${DAYTYPES[type].label}`;
   app.innerHTML = "";
 
+  if (H) checkCard(app, H, ds);
   // 1. Decision: one score, the same as the vault's (written to Intervals.icu by the vault sync when it ran today).
   const dc = el("div", "card", null, app); el("div", "tag", "Ready to train?", dc);
   if (!H) el("div", "cue", settings.key ? "Offline. The plan and tips below still apply." : "Add your API key in Settings to see readiness.", dc);
@@ -649,6 +689,7 @@ async function home(app) {
   items.forEach(([n, d]) => { const it = el("div", "it", null, pc); el("b", null, n, it); if (d) el("div", null, d, it); });
   if (gymV) { const b = el("button", "btn", `Start Gym ${gymV}`, pc); b.style.cssText = "width:100%;margin-top:10px"; b.onclick = () => { if (!cur || !PROGRAM.some((p) => cur.ex[p.id].done > 0)) { cur = newSession(gymV); save(); } tab = "today"; render(); }; }
 
+  rulesCard(app);
   vbCard(app);
   if (H) { kneeCard(app, H); fuelCard(app, H); jumpCard(app, H, ds); }
 
